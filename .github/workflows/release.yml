@@ -34,7 +34,7 @@ jobs:
         run: |
           python3 tests/check_talents.py
           node tests/extractor.cjs
-          bash ./gradlew --no-daemon :app:testDebugUnitTest :app:lintRelease :app:assembleRelease
+          bash ./gradlew --no-daemon --stacktrace :app:testDebugUnitTest :app:lintRelease :app:assembleRelease
       - name: Prepare temporary signing directory
         run: echo "PULSE_SIGNING_DIR=$RUNNER_TEMP/pulse-signing" >> "$GITHUB_ENV"
       - name: Restore owner signing keys
