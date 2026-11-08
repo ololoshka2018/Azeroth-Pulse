@@ -1,0 +1,460 @@
+{
+  "window-frame.png": {
+    "textures": [
+      {
+        "repo": "Gethe/wow-ui-textures",
+        "revision": "312a6e61bab69370c65ccc0a08f1075d62196294",
+        "path": "DialogFrame/UI-DialogBox-Border.PNG"
+      }
+    ],
+    "operation": "Repack eight backdrop tiles in nine-slice order; rotate horizontal sides 90 degrees"
+  },
+  "tooltip-frame.png": {
+    "textures": [
+      {
+        "repo": "NSO73/WoW-Vanilla-Addon-Resources",
+        "revision": "42bbe067f2d0054477927e156c2342ddc73f2f60",
+        "path": "Interface/Tooltips/UI-Tooltip-Border.png"
+      }
+    ],
+    "operation": "Repack eight backdrop tiles in nine-slice order; rotate horizontal sides 90 degrees"
+  },
+  "gold-frame.png": {
+    "textures": [
+      {
+        "repo": "NSO73/WoW-Vanilla-Addon-Resources",
+        "revision": "42bbe067f2d0054477927e156c2342ddc73f2f60",
+        "path": "Interface/DialogFrame/UI-DialogBox-Gold-Border.png"
+      }
+    ],
+    "operation": "Repack eight backdrop tiles in nine-slice order; rotate horizontal sides 90 degrees"
+  },
+  "window-bg.png": {
+    "textures": [
+      {
+        "repo": "NSO73/WoW-Vanilla-Addon-Resources",
+        "revision": "42bbe067f2d0054477927e156c2342ddc73f2f60",
+        "path": "Interface/DialogFrame/UI-DialogBox-Background.png"
+      }
+    ],
+    "operation": "copy"
+  },
+  "tooltip-bg.png": {
+    "textures": [
+      {
+        "repo": "NSO73/WoW-Vanilla-Addon-Resources",
+        "revision": "42bbe067f2d0054477927e156c2342ddc73f2f60",
+        "path": "Interface/Tooltips/UI-Tooltip-Background.png"
+      }
+    ],
+    "operation": "copy"
+  },
+  "portrait.png": {
+    "textures": [
+      {
+        "repo": "NSO73/WoW-Vanilla-Addon-Resources",
+        "revision": "42bbe067f2d0054477927e156c2342ddc73f2f60",
+        "path": "Interface/CharacterFrame/TemporaryPortrait-Male-Human.png"
+      }
+    ],
+    "operation": "copy"
+  },
+  "status-bar.png": {
+    "textures": [
+      {
+        "repo": "NSO73/WoW-Vanilla-Addon-Resources",
+        "revision": "42bbe067f2d0054477927e156c2342ddc73f2f60",
+        "path": "Interface/TargetingFrame/UI-StatusBar.png"
+      }
+    ],
+    "operation": "copy"
+  },
+  "map.png": {
+    "textures": [
+      {
+        "repo": "NSO73/WoW-Vanilla-Addon-Resources",
+        "revision": "42bbe067f2d0054477927e156c2342ddc73f2f60",
+        "path": "Interface/Icons/INV_Misc_Map_01.png"
+      }
+    ],
+    "operation": "copy"
+  },
+  "swords.png": {
+    "textures": [
+      {
+        "repo": "NSO73/WoW-Vanilla-Addon-Resources",
+        "revision": "42bbe067f2d0054477927e156c2342ddc73f2f60",
+        "path": "Interface/Icons/Ability_DualWield.png"
+      }
+    ],
+    "operation": "copy"
+  },
+  "book.png": {
+    "textures": [
+      {
+        "repo": "NSO73/WoW-Vanilla-Addon-Resources",
+        "revision": "42bbe067f2d0054477927e156c2342ddc73f2f60",
+        "path": "Interface/Icons/INV_Misc_Book_09.png"
+      }
+    ],
+    "operation": "copy"
+  },
+  "shield.png": {
+    "textures": [
+      {
+        "repo": "NSO73/WoW-Vanilla-Addon-Resources",
+        "revision": "42bbe067f2d0054477927e156c2342ddc73f2f60",
+        "path": "Interface/Icons/INV_Shield_06.png"
+      }
+    ],
+    "operation": "copy"
+  },
+  "watch.png": {
+    "textures": [
+      {
+        "repo": "NSO73/WoW-Vanilla-Addon-Resources",
+        "revision": "42bbe067f2d0054477927e156c2342ddc73f2f60",
+        "path": "Interface/Icons/INV_Misc_PocketWatch_01.png"
+      }
+    ],
+    "operation": "copy"
+  },
+  "class-atlas.png": {
+    "textures": [
+      {
+        "repo": "NSO73/WoW-Vanilla-Addon-Resources",
+        "revision": "42bbe067f2d0054477927e156c2342ddc73f2f60",
+        "path": "Interface/Glues/CharacterCreate/UI-CharacterCreate-Classes.png"
+      }
+    ],
+    "operation": "copy"
+  },
+  "quest-book.png": {
+    "textures": [
+      {
+        "repo": "NSO73/WoW-Vanilla-Addon-Resources",
+        "revision": "42bbe067f2d0054477927e156c2342ddc73f2f60",
+        "path": "Interface/QuestFrame/UI-QuestLog-BookIcon.png"
+      }
+    ],
+    "operation": "copy"
+  },
+  "button-up.png": {
+    "textures": [
+      {
+        "repo": "Gethe/wow-ui-textures",
+        "revision": "312a6e61bab69370c65ccc0a08f1075d62196294",
+        "path": "Buttons/UI-Panel-Button-Up.PNG"
+      }
+    ],
+    "operation": {
+      "crop": [
+        0,
+        0,
+        80,
+        22
+      ]
+    }
+  },
+  "button-down.png": {
+    "textures": [
+      {
+        "repo": "NSO73/WoW-Vanilla-Addon-Resources",
+        "revision": "42bbe067f2d0054477927e156c2342ddc73f2f60",
+        "path": "Interface/Buttons/UI-Panel-Button-Down.png"
+      }
+    ],
+    "operation": {
+      "crop": [
+        0,
+        0,
+        80,
+        22
+      ]
+    }
+  },
+  "button-disabled.png": {
+    "textures": [
+      {
+        "repo": "NSO73/WoW-Vanilla-Addon-Resources",
+        "revision": "42bbe067f2d0054477927e156c2342ddc73f2f60",
+        "path": "Interface/Buttons/UI-Panel-Button-Disabled.png"
+      }
+    ],
+    "operation": {
+      "crop": [
+        0,
+        0,
+        80,
+        22
+      ]
+    }
+  },
+  "slot.png": {
+    "textures": [
+      {
+        "repo": "NSO73/WoW-Vanilla-Addon-Resources",
+        "revision": "42bbe067f2d0054477927e156c2342ddc73f2f60",
+        "path": "Interface/Buttons/UI-Quickslot2.png"
+      }
+    ],
+    "operation": {
+      "crop": [
+        12,
+        12,
+        51,
+        51
+      ]
+    }
+  },
+  "slot-active.png": {
+    "textures": [
+      {
+        "repo": "NSO73/WoW-Vanilla-Addon-Resources",
+        "revision": "42bbe067f2d0054477927e156c2342ddc73f2f60",
+        "path": "Interface/Buttons/UI-ActionButton-Border.png"
+      }
+    ],
+    "operation": {
+      "crop": [
+        11,
+        11,
+        54,
+        54
+      ]
+    }
+  },
+  "menu-bar.png": {
+    "textures": [
+      {
+        "repo": "NSO73/WoW-Vanilla-Addon-Resources",
+        "revision": "42bbe067f2d0054477927e156c2342ddc73f2f60",
+        "path": "Interface/MainMenuBar/UI-MainMenuBar-Human.png"
+      }
+    ],
+    "operation": {
+      "crop": [
+        42,
+        75,
+        254,
+        128
+      ]
+    }
+  },
+  "gold-title.png": {
+    "textures": [
+      {
+        "repo": "NSO73/WoW-Vanilla-Addon-Resources",
+        "revision": "42bbe067f2d0054477927e156c2342ddc73f2f60",
+        "path": "Interface/DialogFrame/UI-DialogBox-Gold-Header.png"
+      }
+    ],
+    "operation": {
+      "crop": [
+        58,
+        0,
+        197,
+        40
+      ]
+    }
+  },
+  "portrait-ring.png": {
+    "textures": [
+      {
+        "repo": "NSO73/WoW-Vanilla-Addon-Resources",
+        "revision": "42bbe067f2d0054477927e156c2342ddc73f2f60",
+        "path": "Interface/CharacterFrame/UI-Player-Portrait.png"
+      }
+    ],
+    "operation": {
+      "crop": [
+        4,
+        1,
+        74,
+        71
+      ]
+    }
+  },
+  "status-frame.png": {
+    "textures": [
+      {
+        "repo": "NSO73/WoW-Vanilla-Addon-Resources",
+        "revision": "42bbe067f2d0054477927e156c2342ddc73f2f60",
+        "path": "Interface/Tooltips/UI-StatusBar-Border.png"
+      }
+    ],
+    "operation": {
+      "crop": [
+        0,
+        0,
+        127,
+        16
+      ]
+    }
+  },
+  "star.png": {
+    "textures": [
+      {
+        "repo": "NSO73/WoW-Vanilla-Addon-Resources",
+        "revision": "42bbe067f2d0054477927e156c2342ddc73f2f60",
+        "path": "Interface/TargetingFrame/UI-RaidTargetingIcons.png"
+      }
+    ],
+    "operation": {
+      "crop": [
+        0,
+        0,
+        64,
+        64
+      ]
+    }
+  },
+  "parchment.png": {
+    "textures": [
+      {
+        "repo": "NSO73/WoW-Vanilla-Addon-Resources",
+        "revision": "42bbe067f2d0054477927e156c2342ddc73f2f60",
+        "path": "Interface/ItemTextFrame/UI-ItemText-TopLeft.png"
+      }
+    ],
+    "operation": {
+      "crop": [
+        55,
+        86,
+        255,
+        255
+      ]
+    }
+  },
+  "row-glow.png": {
+    "textures": [
+      {
+        "repo": "NSO73/WoW-Vanilla-Addon-Resources",
+        "revision": "42bbe067f2d0054477927e156c2342ddc73f2f60",
+        "path": "Interface/QuestFrame/UI-QuestLogTitleHighlight.png"
+      }
+    ],
+    "operation": {
+      "crop": [
+        0,
+        0,
+        128,
+        16
+      ]
+    }
+  },
+  "azeroth-map.png": {
+    "textures": [
+      {
+        "repo": "NSO73/WoW-Vanilla-Addon-Resources",
+        "revision": "42bbe067f2d0054477927e156c2342ddc73f2f60",
+        "path": "Interface/WorldMap/Azeroth/Azeroth1.png"
+      },
+      {
+        "repo": "NSO73/WoW-Vanilla-Addon-Resources",
+        "revision": "42bbe067f2d0054477927e156c2342ddc73f2f60",
+        "path": "Interface/WorldMap/Azeroth/Azeroth2.png"
+      },
+      {
+        "repo": "NSO73/WoW-Vanilla-Addon-Resources",
+        "revision": "42bbe067f2d0054477927e156c2342ddc73f2f60",
+        "path": "Interface/WorldMap/Azeroth/Azeroth3.png"
+      },
+      {
+        "repo": "NSO73/WoW-Vanilla-Addon-Resources",
+        "revision": "42bbe067f2d0054477927e156c2342ddc73f2f60",
+        "path": "Interface/WorldMap/Azeroth/Azeroth4.png"
+      },
+      {
+        "repo": "NSO73/WoW-Vanilla-Addon-Resources",
+        "revision": "42bbe067f2d0054477927e156c2342ddc73f2f60",
+        "path": "Interface/WorldMap/Azeroth/Azeroth5.png"
+      },
+      {
+        "repo": "NSO73/WoW-Vanilla-Addon-Resources",
+        "revision": "42bbe067f2d0054477927e156c2342ddc73f2f60",
+        "path": "Interface/WorldMap/Azeroth/Azeroth6.png"
+      },
+      {
+        "repo": "NSO73/WoW-Vanilla-Addon-Resources",
+        "revision": "42bbe067f2d0054477927e156c2342ddc73f2f60",
+        "path": "Interface/WorldMap/Azeroth/Azeroth7.png"
+      },
+      {
+        "repo": "NSO73/WoW-Vanilla-Addon-Resources",
+        "revision": "42bbe067f2d0054477927e156c2342ddc73f2f60",
+        "path": "Interface/WorldMap/Azeroth/Azeroth8.png"
+      },
+      {
+        "repo": "NSO73/WoW-Vanilla-Addon-Resources",
+        "revision": "42bbe067f2d0054477927e156c2342ddc73f2f60",
+        "path": "Interface/WorldMap/Azeroth/Azeroth9.png"
+      },
+      {
+        "repo": "NSO73/WoW-Vanilla-Addon-Resources",
+        "revision": "42bbe067f2d0054477927e156c2342ddc73f2f60",
+        "path": "Interface/WorldMap/Azeroth/Azeroth10.png"
+      },
+      {
+        "repo": "NSO73/WoW-Vanilla-Addon-Resources",
+        "revision": "42bbe067f2d0054477927e156c2342ddc73f2f60",
+        "path": "Interface/WorldMap/Azeroth/Azeroth11.png"
+      },
+      {
+        "repo": "NSO73/WoW-Vanilla-Addon-Resources",
+        "revision": "42bbe067f2d0054477927e156c2342ddc73f2f60",
+        "path": "Interface/WorldMap/Azeroth/Azeroth12.png"
+      }
+    ],
+    "operation": "Assemble 4 by 3 atlas and crop to map viewport"
+  },
+  "talent-atlas.png": {
+    "textures": [
+      {
+        "source": "Blizzard game icons listed by Armory WoW Forever for client 1.60.1.70790",
+        "url": "https://render.worldofwarcraft.com/eu/icons/56/"
+      }
+    ],
+    "operation": "Pack unique talent icons in 36 by 36 pixel tiles"
+  },
+  "talents.png": {
+    "textures": [
+      {
+        "repo": "NSO73/WoW-Vanilla-Addon-Resources",
+        "revision": "42bbe067f2d0054477927e156c2342ddc73f2f60",
+        "path": "Interface/Icons/INV_Misc_Book_04.png"
+      }
+    ],
+    "operation": "copy"
+  },
+  "news.png": {
+    "textures": [
+      {
+        "repo": "NSO73/WoW-Vanilla-Addon-Resources",
+        "revision": "42bbe067f2d0054477927e156c2342ddc73f2f60",
+        "path": "Interface/Icons/INV_Misc_Note_03.png"
+      }
+    ],
+    "operation": "copy"
+  },
+  "morpheus.ttf": {
+    "textures": [
+      {
+        "repo": "NSO73/WoW-Vanilla-Addon-Resources",
+        "revision": "42bbe067f2d0054477927e156c2342ddc73f2f60",
+        "path": "Interface/FrameXML/LFT/fonts/MORPHEUS.TTF"
+      }
+    ],
+    "operation": "copy"
+  },
+  "res/drawable-nodpi/ic_launcher.png": {
+    "textures": [
+      {
+        "repo": "NSO73/WoW-Vanilla-Addon-Resources",
+        "revision": "42bbe067f2d0054477927e156c2342ddc73f2f60",
+        "path": "Interface/Icons/INV_Misc_PocketWatch_01.png"
+      }
+    ],
+    "operation": "copy"
+  }
+}

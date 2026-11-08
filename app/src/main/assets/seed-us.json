@@ -1,0 +1,220 @@
+{
+  "realms": {
+    "RPPVP": {
+      "horde": 8555,
+      "total": 10966,
+      "classesAlliance": {
+        "Druid": 12.9,
+        "Hunter": 12.7,
+        "Warrior": 10.6,
+        "Priest": 12.6,
+        "Mage": 9.9,
+        "Shaman": 9.5,
+        "Paladin": 11.4,
+        "Rogue": 10.9,
+        "Warlock": 9.7
+      },
+      "classesHorde": {
+        "Druid": 13.7,
+        "Hunter": 10.8,
+        "Warrior": 10.6,
+        "Priest": 9.9,
+        "Mage": 8.1,
+        "Shaman": 13.5,
+        "Paladin": 11,
+        "Rogue": 11.9,
+        "Warlock": 10.5
+      },
+      "alliance": 2411,
+      "publishedAt": "2026-11-06T05:00:00Z",
+      "races": {
+        "Human": 5.7,
+        "Orc": 12.8,
+        "Undead": 28.4,
+        "Troll": 11.8,
+        "Night Elf": 4.9,
+        "Tauren": 13.3,
+        "Dwarf": 5.3,
+        "Windshaper Skyborne": 11.7,
+        "Gnome": 3.4,
+        "High Order Skyborne": 2.8
+      },
+      "classes": {
+        "Druid": 13.5,
+        "Hunter": 11.2,
+        "Warrior": 10.6,
+        "Priest": 10.5,
+        "Mage": 8.5,
+        "Shaman": 12.6,
+        "Paladin": 11.1,
+        "Rogue": 11.7,
+        "Warlock": 10.3
+      },
+      "active7d": 10966,
+      "active24h": 10966,
+      "scanDate": "2026-11-06"
+    },
+    "PVP": {
+      "horde": 14949,
+      "total": 34436,
+      "classesAlliance": {
+        "Hunter": 12.2,
+        "Druid": 3.1,
+        "Warrior": 9.6,
+        "Priest": 11.8,
+        "Mage": 12.6,
+        "Shaman": 7.9,
+        "Paladin": 18.8,
+        "Rogue": 12.5,
+        "Warlock": 11.4
+      },
+      "classesHorde": {
+        "Hunter": 12.4,
+        "Druid": 12,
+        "Warrior": 12.1,
+        "Priest": 11.1,
+        "Mage": 8.7,
+        "Shaman": 13.5,
+        "Paladin": 9,
+        "Rogue": 10.1,
+        "Warlock": 11.1
+      },
+      "alliance": 19487,
+      "publishedAt": "2026-11-06T05:00:00Z",
+      "races": {
+        "Human": 22.8,
+        "Orc": 9.1,
+        "Undead": 14.1,
+        "Troll": 7.5,
+        "Night Elf": 8.5,
+        "Dwarf": 11.3,
+        "Tauren": 6.5,
+        "Windshaper Skyborne": 6.2,
+        "Gnome": 12,
+        "High Order Skyborne": 2
+      },
+      "classes": {
+        "Hunter": 12.3,
+        "Druid": 7,
+        "Warrior": 10.7,
+        "Priest": 11.5,
+        "Mage": 10.9,
+        "Shaman": 10.4,
+        "Paladin": 14.5,
+        "Rogue": 11.5,
+        "Warlock": 11.3
+      },
+      "active7d": 34436,
+      "active24h": 34436,
+      "scanDate": "2026-11-06"
+    },
+    "PVE": {
+      "horde": 39663,
+      "total": 112465,
+      "classesAlliance": {
+        "Hunter": 14.2,
+        "Druid": 13.1,
+        "Warrior": 10.5,
+        "Priest": 10.6,
+        "Mage": 11.7,
+        "Shaman": 10,
+        "Paladin": 12.3,
+        "Rogue": 8.7,
+        "Warlock": 9
+      },
+      "classesHorde": {
+        "Druid": 12.9,
+        "Hunter": 12.2,
+        "Warrior": 11.8,
+        "Priest": 8.2,
+        "Mage": 9.9,
+        "Shaman": 14.6,
+        "Paladin": 9.5,
+        "Rogue": 10.8,
+        "Warlock": 10
+      },
+      "alliance": 72802,
+      "publishedAt": "2026-11-06T05:00:00Z",
+      "races": {
+        "Human": 19.2,
+        "Orc": 6,
+        "Undead": 10.8,
+        "Troll": 6.3,
+        "Night Elf": 13.2,
+        "Dwarf": 12.7,
+        "Tauren": 6.6,
+        "Windshaper Skyborne": 5.6,
+        "Gnome": 9,
+        "High Order Skyborne": 10.6
+      },
+      "classes": {
+        "Hunter": 13.5,
+        "Druid": 13,
+        "Warrior": 10.9,
+        "Priest": 9.7,
+        "Mage": 11.1,
+        "Shaman": 11.7,
+        "Paladin": 11.3,
+        "Rogue": 9.4,
+        "Warlock": 9.4
+      },
+      "active7d": 112465,
+      "active24h": 107457,
+      "scanDate": "2026-11-06"
+    },
+    "RP": {
+      "horde": 7794,
+      "total": 12721,
+      "classesAlliance": {
+        "Hunter": 14.8,
+        "Druid": 13.6,
+        "Warrior": 9.9,
+        "Priest": 8.3,
+        "Mage": 14.9,
+        "Shaman": 8.3,
+        "Paladin": 11.1,
+        "Rogue": 10.4,
+        "Warlock": 8.8
+      },
+      "classesHorde": {
+        "Druid": 13,
+        "Hunter": 11.8,
+        "Warrior": 12.5,
+        "Priest": 8.9,
+        "Mage": 8.6,
+        "Shaman": 15.1,
+        "Paladin": 10.2,
+        "Rogue": 4.9,
+        "Warlock": 15
+      },
+      "alliance": 4927,
+      "publishedAt": "2026-11-06T05:00:00Z",
+      "races": {
+        "Human": 10.9,
+        "Orc": 9.7,
+        "Undead": 19.6,
+        "Troll": 10.2,
+        "Night Elf": 7.6,
+        "Tauren": 11.1,
+        "Dwarf": 6.8,
+        "Windshaper Skyborne": 10.6,
+        "Gnome": 5.7,
+        "High Order Skyborne": 7.8
+      },
+      "classes": {
+        "Druid": 13.2,
+        "Hunter": 13,
+        "Warrior": 11.5,
+        "Priest": 8.7,
+        "Mage": 11.1,
+        "Shaman": 12.4,
+        "Paladin": 10.6,
+        "Rogue": 7,
+        "Warlock": 12.6
+      },
+      "active7d": 12721,
+      "active24h": 12721,
+      "scanDate": "2026-11-06"
+    }
+  }
+}
