@@ -12,6 +12,15 @@ const initial = {
   talentChanges:{entries:[{id:2,className:'Mage',at:'2026-11-08T12:00:00Z',items:['Обновлён билд мага.'],unread:true},{id:1,className:'Rogue',at:'2026-11-08T11:00:00Z',items:['Изменён порядок талантов.'],unread:true}],unread:2,latest:2},
   news:{items:JSON.parse(fs.readFileSync(path.join(root,'news-seed.json'))).slice(0,3).map(a=>({...a,title:a.titleRu,summary:a.summaryRu,unread:true,bookmarked:false})),unread:3,untranslated:0,status:'saved',translationStatus:'idle'}
 };
+Object.assign(initial.snapshot.realms.PVP, {
+  horde:22486,
+  classesHorde:{
+    'CHAMÁN':8.6, Shaman:6.9, Druid:6.9, GUERRERO:6.6, Priest:6.6, Warlock:6.3, Hunter:6.2,
+    SACERDOTE:6.1, Warrior:6.1, MAGO:5.8, CAZADOR:5.3, Rogue:5, Paladin:4.9, DRUIDA:4.6,
+    'PÍCARO':4.6, Mage:4.3, BRUJO:3.2, 'PALADÍN':2.1
+  },
+  races:{Undead:12, 'No-muerto':6.2, Orc:10, Orco:5.4, 'Windshaper Skyborne':7, 'Cielonato Formavientos':2.1}
+});
 const character = {key:'eu:judgement-judy',name:'Judgement',surname:'Judy',slug:'judgement-judy',region:'EU',className:'Paladin',race:'Human',faction:'Alliance',ruleset:'Normal',level:24,itemLevel:16,guild:'Circle of Lore',avatar:'',render:'',checkedAt:'2026-11-08T15:00:00Z',observedAt:'2026-11-08T14:00:00Z',gear:[{name:'Sword of the Fallen',slot:'MAIN_HAND',quality:'RARE',level:23,stats:[{type:'STRENGTH',value:6}]}],stats:[{type:'HEALTH',value:677}],professions:[{name:'Mining',skill:116,max:150}],specs:[{name:'Holy',points:3},{name:'Retribution',points:12}]};
 const mime = {'.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json','.png':'image/png','.ttf':'font/ttf'};
 const server = http.createServer((req,res)=>{
@@ -68,6 +77,19 @@ const server = http.createServer((req,res)=>{
     };
     await fits('worlds 320');
     await navFits();
+    await nav.getByRole('button',{name:'Население'}).click();
+    await page.getByRole('button',{name:'PvP',exact:true}).click();
+    await page.getByRole('button',{name:'Орда',exact:true}).click();
+    const rows = page.locator('.roster > li');
+    assert.equal(await rows.count(),9,'English and Spanish labels combine into nine classes');
+    const shaman = rows.filter({hasText:'Шаман'});
+    assert.match(await shaman.innerText(),/15,5%[\s\S]*≈\s+3\s485/);
+    assert.equal(await shaman.locator('.class-shaman').count(),1);
+    await page.getByRole('button',{name:'Расы',exact:true}).click();
+    assert.equal(await rows.count(),3);
+    assert.match(await rows.filter({hasText:'Нежить'}).innerText(),/18,2%/);
+    assert.match(await rows.filter({hasText:'Skyborne · Орда'}).innerText(),/9,1%/);
+    await fits('localized population 320');
     await page.locator('[data-action="nav"][data-value="news"]').click();
     assert.equal(await page.evaluate(()=>window.__model.news.unread),3);
     await page.getByRole('button',{name:'К Twitch Drops'}).click();

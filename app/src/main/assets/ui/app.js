@@ -45,6 +45,16 @@ const COLORS = {
   Undead:'#d38266', Orc:'#d38266', Troll:'#d38266', Tauren:'#d38266', 'Windshaper Skyborne':'#d38266'
 };
 const CLASS_ICONS = new Set(['Warrior','Mage','Rogue','Druid','Hunter','Shaman','Priest','Warlock','Paladin']);
+// WoWCensus may publish separate shares for English and Spanish client labels.
+function rosterKey(label) {
+  return label.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[\s-]+/g, ' ');
+}
+const ROSTER_NAMES = new Map([
+  ...Object.keys(COLORS).map(label => [rosterKey(label), label]),
+  ['guerrero','Warrior'], ['paladin','Paladin'], ['cazador','Hunter'], ['picaro','Rogue'],
+  ['sacerdote','Priest'], ['chaman','Shaman'], ['mago','Mage'], ['brujo','Warlock'], ['druida','Druid'],
+  ['no muerto','Undead'], ['orco','Orc'], ['trol','Troll'], ['cielonato formavientos','Windshaper Skyborne']
+]);
 const STATUS = {
   saved:'Сохранённые данные', loading:'Обновление…',
   checked:'Проверка завершена', partial:'Частичное обновление',
@@ -217,7 +227,12 @@ function roster() {
     key = 'classesHorde';
     total = realm?.horde;
   }
-  const rows = Object.entries(realm?.[key] || {}).sort(([,a],[,b]) => b-a);
+  const shares = new Map();
+  for (const [label, share] of Object.entries(realm?.[key] || {})) {
+    const canonical = ROSTER_NAMES.get(rosterKey(label)) || label;
+    shares.set(canonical, (shares.get(canonical) || 0) + share);
+  }
+  const rows = [...shares].sort(([,a],[,b]) => b-a);
   const maxShare = rows[0]?.[1] || 100;
   const results = rows.map(([label, share]) => {
     const approximate = Number.isSafeInteger(total) ? `≈ ${number(Math.round(total * share / 100))}` : '—';
@@ -559,7 +574,7 @@ window.acceptPulseState = encoded => {
   state.news ||= {items:[], unread:0, untranslated:0, status:'saved', translationStatus:'idle'};
   state.drops ||= {campaigns:[], offline:false};
   state.sourceStatus ||= {};
-  state.appUpdates ||= {installed:'1.1.0', status:'saved', available:false};
+  state.appUpdates ||= {installed:'1.1.1', status:'saved', available:false};
   if (!Object.hasOwn(THEMES, state.theme)) state.theme = 'classic';
   state.characters ||= {characters:[],selected:'',results:[],status:'saved'};
   state.talentChanges ||= {entries:[], unread:0, latest:0};
