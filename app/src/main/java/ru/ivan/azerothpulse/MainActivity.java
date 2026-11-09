@@ -5,13 +5,17 @@ import android.content.Intent;
 import android.content.ActivityNotFoundException;
 import android.content.SharedPreferences;
 import android.graphics.Color;
+import android.graphics.Insets;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
+import android.view.View;
+import android.view.Window;
 import android.view.WindowInsets;
+import android.view.WindowInsetsController;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
@@ -49,6 +53,7 @@ public final class MainActivity extends Activity {
     private final java.util.Set<String> talentsLoading = new java.util.HashSet<>();
     private SharedPreferences preferences;
     private SharedPreferences talentCache;
+    private FrameLayout container;
     private WebView screen;
     private NewsBoard news;
     private AppUpdates appUpdates;
@@ -119,14 +124,14 @@ public final class MainActivity extends Activity {
         getSystemService(android.app.job.JobScheduler.class).cancel(1203);
         getSystemService(android.app.NotificationManager.class).cancel(1204);
         updateState();
-        FrameLayout container = new FrameLayout(this);
-        container.setBackgroundColor(0xff100d0a);
+        container = new FrameLayout(this);
         if (Build.VERSION.SDK_INT >= 30) {
             getWindow().setDecorFitsSystemWindows(false);
             container.setOnApplyWindowInsetsListener((view, insets) -> {
-                android.graphics.Insets bars = insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
+                int handled = WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout();
+                Insets bars = insets.getInsets(handled);
                 view.setPadding(bars.left, bars.top, bars.right, bars.bottom);
-                return insets;
+                return new WindowInsets.Builder(insets).setInsets(handled, Insets.NONE).build();
             });
         }
         screen = new WebView(this);
@@ -155,8 +160,42 @@ public final class MainActivity extends Activity {
         });
         container.addView(screen, new FrameLayout.LayoutParams(-1, -1));
         setContentView(container);
+        applySystemBarTheme(preferences.getString(THEME, "classic"));
         screen.loadUrl(APP_URL);
         account.callback(getIntent().getData());
+    }
+
+    @SuppressWarnings("deprecation")
+    private void applySystemBarTheme(String theme) {
+        int color;
+        switch (theme) {
+            case "royal": color = 0xff101319; break;
+            case "modern": color = 0xff192230; break;
+            case "parchment": color = 0xfff5ead5; break;
+            case "contrast": color = 0xff101010; break;
+            default: color = 0xff100d0a;
+        }
+        boolean darkIcons = "parchment".equals(theme);
+        Window window = getWindow();
+        container.setBackgroundColor(color);
+        if (Build.VERSION.SDK_INT >= 30) {
+            window.setStatusBarColor(Color.TRANSPARENT);
+            window.setNavigationBarColor(Color.TRANSPARENT);
+            window.setStatusBarContrastEnforced(false);
+            window.setNavigationBarContrastEnforced(false);
+            WindowInsetsController controller = window.getInsetsController();
+            if (controller != null) {
+                int mask = WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+                    | WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS;
+                controller.setSystemBarsAppearance(darkIcons ? mask : 0, mask);
+            }
+        } else {
+            window.setStatusBarColor(color);
+            window.setNavigationBarColor(color);
+            View decor = window.getDecorView();
+            int mask = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+            decor.setSystemUiVisibility((decor.getSystemUiVisibility() & ~mask) | (darkIcons ? mask : 0));
+        }
     }
 
     private WebResourceResponse localAsset(String path) {
@@ -419,6 +458,7 @@ public final class MainActivity extends Activity {
         @JavascriptInterface public void setTheme(String value) {
             if (THEMES.contains(value)) runOnUiThread(() -> {
                 preferences.edit().putString(THEME, value).apply();
+                applySystemBarTheme(value);
                 publishState();
             });
         }

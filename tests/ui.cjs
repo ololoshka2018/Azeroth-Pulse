@@ -43,6 +43,15 @@ const server = http.createServer((req,res)=>{
     await page.goto(url); await page.getByRole('heading',{name:'Миры Европы'}).waitFor();
     const fits=async label=>assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1),`Overflow: ${label}`);
     const nav = page.getByRole('navigation',{name:'Разделы'});
+    const emulation = await page.context().newCDPSession(page);
+    await emulation.send('Emulation.setSafeAreaInsetsOverride', {insets:{bottom:40}});
+    const navPadding = () => nav.evaluate(el => getComputedStyle(el).paddingBottom);
+    assert.equal(await navPadding(), '4px', 'Android owns the system navigation inset');
+    await page.evaluate(() => document.documentElement.removeAttribute('data-native-insets'));
+    assert.equal(await navPadding(), '40px', 'Browser preview respects the safe area');
+    await page.evaluate(() => document.documentElement.setAttribute('data-native-insets', ''));
+    await emulation.send('Emulation.setSafeAreaInsetsOverride', {insets:{}});
+    await emulation.detach();
     const characterTab = nav.getByRole('button',{name:'Персонаж'});
     const settingsTab = nav.getByRole('button',{name:'Настройки'});
     const navFits = async () => {

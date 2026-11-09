@@ -499,7 +499,7 @@ window.acceptPulseState = encoded => {
   if (!Object.hasOwn(REGIONS, state.region)) state.region = 'EU';
   state.news ||= {items:[], unread:0, untranslated:0, status:'saved', translationStatus:'idle'};
   state.sourceStatus ||= {};
-  state.appUpdates ||= {installed:'0.18.6', status:'saved', available:false};
+  state.appUpdates ||= {installed:'0.18.7', status:'saved', available:false};
   if (!Object.hasOwn(THEMES, state.theme)) state.theme = 'classic';
   state.characters ||= {characters:[],selected:'',results:[],status:'saved'};
   state.talentChanges ||= {entries:[], unread:0, latest:0};
@@ -533,6 +533,7 @@ function previewRegion(region) {
 }
 
 if (window.Pulse) {
+  document.documentElement.dataset.nativeInsets = '';
   window.acceptPulseState(window.Pulse.initial());
 } else {
   Promise.all(['../seed.json','../seed-us.json','../news-seed.json'].map(file => fetch(file).then(response => response.json())))
