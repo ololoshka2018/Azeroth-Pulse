@@ -159,6 +159,9 @@ main { padding: 6px 5px 8px; }
 .news-badge { position: absolute; z-index: 2; top: -4px; right: -6px; display: grid; place-items: center; min-width: 19px; height: 19px; padding: 0 3px; border: 1px solid #ffcf69; border-radius: 8px; background: #9a2119; color: #fff0bc; box-shadow: 0 0 6px #d96c30; font: 700 11px/1 system-ui,sans-serif; }
 .news-card h3 { margin: 3px 0; color: #ffe4a0; font: 400 1.37rem/1.13 var(--title); }
 .news-summary { margin: 4px 0; }
+.drops-card h3 { overflow-wrap: anywhere; }
+.drops-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.drops-actions button { min-height: 44px; }
 .news-card button,.translation-panel button { margin-top: 4px; min-height: 44px; }
 .news-reader { margin-top: 8px; padding-top: 8px; border-top: 1px solid #5e4c31; }
 .article-text { margin: 8px 0 2px; line-height: 1.5; overflow-wrap: anywhere; }

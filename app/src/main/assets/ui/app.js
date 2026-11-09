@@ -62,9 +62,13 @@ let regionMenuOpen = false;
 let expandedArticle = null;
 let appUpdatesOpen = false;
 let newsFilter = 'all';
+let dropsTimer;
 
 function escape(value) {
   return String(value ?? '').replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
+}
+function versionLabel(value) {
+  return String(value).replace(/^([1-9]\d*\.\d+)\.0$/, '$1');
 }
 function name(value) { return escape(NAMES[value] || value || ''); }
 function number(value) { return Number.isSafeInteger(value) ? integer.format(value) : '—'; }
@@ -114,10 +118,10 @@ function appUpdateDialog() {
   return `<div class="dialog-shade"><section class="panel app-dialog" role="dialog" aria-modal="true" aria-labelledby="update-heading">
     <div class="dialog-title"><h2 id="update-heading">Azeroth Pulse</h2>
       <button class="red-button" data-action="close-app-updates" aria-label="Закрыть обновления">×</button></div>
-    <p>Установлена версия ${escape(update.installed)}</p>
+    <p>Установлена версия ${escape(versionLabel(update.installed))}</p>
     <p class="fine" role="status">${labels[update.status] || labels.saved}</p>
     ${update.checkedAt ? `<p class="fine">Проверено · ${escape(timestamp(update.checkedAt))}</p>` : ''}
-    ${release ? `<h3>Версия ${escape(release.version)}</h3><p class="fine">Выпуск · ${escape(timestamp(release.publishedAt))}</p>
+    ${release ? `<h3>Версия ${escape(versionLabel(release.version))}</h3><p class="fine">Выпуск · ${escape(timestamp(release.publishedAt))}</p>
       <div class="app-release-notes">${escape(release.notes || 'Описание изменений пока не опубликовано.')}</div>` : ''}
     <div class="dialog-actions">${update.available && !downloading ? `<button class="red-button" data-action="${['ready','permission'].includes(download.status) ? 'install-app-update' : 'download-app-update'}">${['ready','permission'].includes(download.status) ? 'Установить обновление' : 'Обновить приложение'}</button>` : ''}
       <button class="red-button" data-action="check-app-updates" ${update.status === 'loading' ? 'disabled' : ''}>Проверить обновления</button></div>
@@ -270,7 +274,52 @@ function newsReader(id) {
     <button class="red-button" data-action="close-news" data-value="${escape(id)}">Свернуть</button>`;
 }
 
+function dropRequirement(campaign) {
+  if (campaign.type === 'subscription') return 'За подписку';
+  const hours = Math.floor(campaign.minutes / 60);
+  const minutes = campaign.minutes % 60;
+  return ['За просмотр', hours ? hours + ' ч' : '', minutes ? minutes + ' мин' : ''].filter(Boolean).join(' ');
+}
+
+function dropsScreen(campaigns, now) {
+  const cards = campaigns.map(campaign => {
+    const started = Date.parse(campaign.startsAt) <= now;
+    return `<article class="panel news-card drops-card">
+      <p class="fine">${started ? 'Идёт сейчас' : 'Скоро'} · ${dropRequirement(campaign)}</p>
+      <h3>${escape(campaign.title)}</h3>
+      <p class="news-summary">${escape(campaign.description)}</p>
+      ${started ? '' : `<p>Начало · ${escape(timestamp(campaign.startsAt))}</p>`}
+      <p>До ${escape(timestamp(campaign.endsAt))}</p>
+      <button class="text-button" data-action="drop-source" data-value="${escape(campaign.id)}">Официальные условия</button>
+    </article>`;
+  }).join('');
+  return `<section aria-label="Кампании Twitch Drops">
+    ${state.drops.offline ? '<p class="fine">Проверка недоступна · показан сохранённый список</p>' : ''}
+    ${cards || '<p class="panel">В списке сейчас нет активных или объявленных кампаний.</p>'}
+    <div class="drops-actions">
+      <button class="red-button" data-action="open-source" data-value="twitch-watch">Смотреть на Twitch</button>
+      <button class="red-button" data-action="open-source" data-value="twitch-inventory">Мои Drops</button>
+    </div>
+    <p class="fine">Для наград за просмотр выбери прямой эфир с Drops Enabled и привяжи Battle.net к Twitch. Прогресс и награды доступны в «Моих Drops».</p>
+  </section>`;
+}
+
 function newsScreen() {
+  const now = Date.now();
+  const campaigns = state.drops.campaigns.filter(campaign => Date.parse(campaign.endsAt) > now);
+  const boundaries = campaigns.flatMap(campaign => [Date.parse(campaign.startsAt), Date.parse(campaign.endsAt)]);
+  const next = Math.min(...boundaries.filter(time => time > now));
+  if (Number.isFinite(next)) dropsTimer = setTimeout(render, Math.min(next - now, 2_147_483_647));
+  const header = section('Новости', 'WoW: Forever · Blizzard Entertainment') +
+    choices([['all','Все новости'],['saved','Избранное'],['drops','Twitch Drops']],newsFilter,'news-filter','Раздел новостей');
+  if (newsFilter === 'drops') return header + dropsScreen(campaigns, now);
+  const featured = campaigns.find(campaign => campaign.type === 'watch' && Date.parse(campaign.startsAt) <= now);
+  const dropNotice = newsFilter === 'all' && featured ? `<aside class="panel news-card drops-card">
+    <p class="fine">Twitch Drops · Идёт сейчас</p>
+    <h3>${escape(featured.title)}</h3>
+    <p>${dropRequirement(featured)} · до ${escape(timestamp(featured.endsAt))}</p>
+    <button class="red-button" data-action="news-filter" data-value="drops">К Twitch Drops</button>
+  </aside>` : '';
   const news = state.news;
   const modelLoading = news.translationStatus === 'loading';
   const translationPanel = news.untranslated > 0 ? `<aside class="panel translation-panel">
@@ -293,12 +342,13 @@ function newsScreen() {
     <div class="news-reader" id="article-${id}" ${open ? '' : 'hidden'}>${open ? newsReader(article.id) : ''}</div>
     </article>`;
   }).join('');
-  return section('Новости', 'WoW: Forever · Blizzard Entertainment') + choices([['all','Все новости'],['saved','Избранное']],newsFilter,'news-filter','Фильтр новостей') +
+  return header + dropNotice +
     freshness(news, news.status, null) + translationPanel +
     (cards || '<p class="fine news-empty">Новости пока не загрузились.</p>');
 }
 
 function render(scrollToTop = false) {
+  clearTimeout(dropsTimer);
   const scroll = window.scrollY;
   const root = document.documentElement;
   if (state.theme === 'classic') root.removeAttribute('data-theme');
@@ -329,7 +379,7 @@ function render(scrollToTop = false) {
     <header class="window-title${showRegion ? '' : ' personal-title'}">${showRegion ? `<button class="region-toggle" data-action="region-menu" aria-label="Регион: ${REGIONS[state.region]} (${state.region})"
       aria-expanded="${regionMenuOpen}" aria-controls="region-options"><span>${state.region}</span><span aria-hidden="true">▾</span></button>` : ''}
       <div class="window-brand"><h1>Azeroth Pulse</h1><button class="app-version" data-action="app-updates"
-        aria-label="Версия приложения ${escape(state.appUpdates.installed)} и обновления">FOREVER · v${escape(state.appUpdates.installed)}${state.appUpdates.available ? ' ●' : ''}</button></div>
+        aria-label="Версия приложения ${escape(versionLabel(state.appUpdates.installed))} и обновления">FOREVER · v${escape(versionLabel(state.appUpdates.installed))}${state.appUpdates.available ? ' ●' : ''}</button></div>
       ${showRefresh ? `<button class="red-button refresh" data-action="refresh" ${status === 'loading' ? 'disabled' : ''}>${icon('watch')}${isCharacter && status === 'loading' ? 'Обновляем…' : 'Обновить'}</button>` : ''}
     </header>
     <div class="region-menu" id="region-options" ${regionMenuOpen ? '' : 'hidden'}>
@@ -398,7 +448,15 @@ app.addEventListener('click', event => {
     case 'text-scale': window.Pulse?.setTextScale?.(Number(value)); if (!window.Pulse) { state.textScale = Number(value); render(); } return;
     case 'open-source': window.Pulse?.openSource?.(value); return;
     case 'character-talents': tab = 'talents'; Talents.useCharacter(Characters.selected()); render(true); Talents.load(); return;
-    case 'news-filter': newsFilter = value; render(true); return;
+    case 'news-filter':
+      if (value === 'drops' && expandedArticle !== null) {
+        expandedArticle = null;
+        window.Pulse?.closeNews();
+      }
+      newsFilter = value;
+      render(true);
+      return;
+    case 'drop-source': window.Pulse?.openDropSource?.(value); return;
     case 'bookmark-news': window.Pulse?.bookmarkNews?.(value); return;
     case 'install-app-update': window.Pulse?.installAppUpdate?.(); return;
     case 'cancel-app-download': window.Pulse?.cancelAppDownload?.(); return;
@@ -457,6 +515,7 @@ app.addEventListener('click', event => {
       regionMenuOpen = false;
       tab = value;
       render(true);
+      if (tab === 'news') window.Pulse?.checkDrops?.();
       if (tab === 'talents') {
         Talents.load();
         Talents.check(false);
@@ -498,8 +557,9 @@ window.acceptPulseState = encoded => {
   state = JSON.parse(encoded);
   if (!Object.hasOwn(REGIONS, state.region)) state.region = 'EU';
   state.news ||= {items:[], unread:0, untranslated:0, status:'saved', translationStatus:'idle'};
+  state.drops ||= {campaigns:[], offline:false};
   state.sourceStatus ||= {};
-  state.appUpdates ||= {installed:'0.18.7', status:'saved', available:false};
+  state.appUpdates ||= {installed:'1.1.0', status:'saved', available:false};
   if (!Object.hasOwn(THEMES, state.theme)) state.theme = 'classic';
   state.characters ||= {characters:[],selected:'',results:[],status:'saved'};
   state.talentChanges ||= {entries:[], unread:0, latest:0};
@@ -536,11 +596,11 @@ if (window.Pulse) {
   document.documentElement.dataset.nativeInsets = '';
   window.acceptPulseState(window.Pulse.initial());
 } else {
-  Promise.all(['../seed.json','../seed-us.json','../news-seed.json'].map(file => fetch(file).then(response => response.json())))
-    .then(([EU, US, articles]) => {
+  Promise.all(['../seed.json','../seed-us.json','../news-seed.json','../drops.json'].map(file => fetch(file).then(response => response.json())))
+    .then(([EU, US, articles, drops]) => {
       previewSnapshots = {EU, US};
       const items = articles.map(article => ({...article, title:article.titleRu, summary:article.summaryRu}));
-      window.acceptPulseState(JSON.stringify({region:'EU', snapshot:EU, favorite:'PVE', status:'saved',
+      window.acceptPulseState(JSON.stringify({region:'EU', snapshot:EU, favorite:'PVE', status:'saved', drops,
         news:{items, unread:items.length, untranslated:0, status:'saved', translationStatus:'idle'}}));
     });
 }

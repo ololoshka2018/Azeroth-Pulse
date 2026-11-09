@@ -56,6 +56,7 @@ public final class MainActivity extends Activity {
     private FrameLayout container;
     private WebView screen;
     private NewsBoard news;
+    private DropsBoard drops;
     private AppUpdates appUpdates;
     private ApkUpdater apkUpdater;
     private CharacterBoard characters;
@@ -120,6 +121,7 @@ public final class MainActivity extends Activity {
         region = preferences.getString("region", "EU");
         if (!regions.containsKey(region)) region = "EU";
         news = new NewsBoard(preferences, readNewsSeed(), this::publishState);
+        drops = new DropsBoard(preferences, network, main, this::publishState, readDropsSeed());
         // Retire the background task and any notification from older versions.
         getSystemService(android.app.job.JobScheduler.class).cancel(1203);
         getSystemService(android.app.NotificationManager.class).cancel(1204);
@@ -236,6 +238,11 @@ public final class MainActivity extends Activity {
         catch (Exception invalid) { return new JSONArray(); }
     }
 
+    private String readDropsSeed() {
+        try { return assetText("drops.json"); }
+        catch (IOException unavailable) { return ""; }
+    }
+
     private static String cacheKey(String region) { return "EU".equals(region) ? CACHE : CACHE + "." + region; }
 
     private JSONObject readSnapshot(String region) {
@@ -269,7 +276,7 @@ public final class MainActivity extends Activity {
         try {
             RegionState current = regions.get(region);
             uiState = new JSONObject().put("region", region).put("snapshot", current.snapshot)
-                .put("favorite", current.favorite).put("status", current.status).put("news", news.state())
+                .put("favorite", current.favorite).put("status", current.status).put("news", news.state()).put("drops", drops.state())
                 .put("sourceStatus", current.sourceStatus).put("appUpdates", appUpdates.state())
                 .put("talentChanges", talentChanges.state()).put("characters", characters.state())
                 .put("testing", BuildConfig.TEST_BUILD).put("account", account.state()).put("apkDownload", apkUpdater.state()).put("textScale", preferences.getInt("textScale", 100))
@@ -434,7 +441,18 @@ public final class MainActivity extends Activity {
             runOnUiThread(MainActivity.this::refresh);
         }
 
-        @JavascriptInterface public void refreshNews() { runOnUiThread(news::refresh); }
+        @JavascriptInterface public void refreshNews() {
+            runOnUiThread(() -> {
+                news.refresh();
+                drops.refresh(true);
+            });
+        }
+
+        @JavascriptInterface public void checkDrops() { runOnUiThread(() -> drops.refresh(false)); }
+
+        @JavascriptInterface public void openDropSource(String id) {
+            runOnUiThread(() -> openExternal(drops.source(id)));
+        }
 
         @JavascriptInterface public void checkAppUpdates() { runOnUiThread(() -> appUpdates.check(true)); }
 
@@ -471,10 +489,11 @@ public final class MainActivity extends Activity {
                     case "issues": url = repo + "/issues"; break;
                     case "privacy": url = repo + "/blob/main/PRIVACY.md"; break;
                     case "licenses": url = repo + "/blob/main/THIRD_PARTY.md"; break;
+                    case "twitch-watch": url = "https://www.twitch.tv/directory/category/world-of-warcraft"; break;
+                    case "twitch-inventory": url = "https://www.twitch.tv/drops/inventory"; break;
                     default: return;
                 }
-                try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))); }
-                catch (ActivityNotFoundException unavailable) { android.widget.Toast.makeText(MainActivity.this, "Нужен браузер для открытия ссылки.", android.widget.Toast.LENGTH_SHORT).show(); }
+                openExternal(url);
             });
         }
         @JavascriptInterface public String talentPreferences() { return savedTalentPreferences().toString(); }
@@ -553,6 +572,14 @@ public final class MainActivity extends Activity {
 
     }
 
+    private void openExternal(String url) {
+        if (url == null) return;
+        try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))); }
+        catch (ActivityNotFoundException unavailable) {
+            android.widget.Toast.makeText(this, "Нужен браузер для открытия ссылки.", android.widget.Toast.LENGTH_SHORT).show();
+        }
+    }
+
     @Override protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent); setIntent(intent); account.callback(intent.getData());
     }
@@ -585,6 +612,7 @@ public final class MainActivity extends Activity {
     @Override protected void onDestroy() {
         closed = true;
         news.close();
+        drops.close();
         appUpdates.close();
         apkUpdater.close();
         characters.close();

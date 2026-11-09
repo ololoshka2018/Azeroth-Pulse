@@ -21,6 +21,7 @@ public final class AppUpdatesTest {
         assertEquals("0.17.0", AppUpdates.parse(release()).getString("version"));
         assertTrue(AppUpdates.compare("0.17.0", "0.16.0") > 0);
         assertTrue(AppUpdates.compare("0.9.9", "0.16.0") < 0);
+        assertTrue(AppUpdates.compare("1.1.0", "0.18.7") > 0);
     }
 
     @Test public void rejectsMissingChecksum() throws Exception {

@@ -1,0 +1,24 @@
+{
+  "updatedAt": "2026-11-09T17:00:00Z",
+  "campaigns": [
+    {
+      "id": "forever-violet-dust",
+      "title": "Pouch of Violet Dust",
+      "description": "Игрушка для WoW: Forever. Окрашивает походный костёр в фиолетовый цвет и продлевает его усиления на час. Действует во время события запуска Forever.",
+      "type": "watch",
+      "minutes": 240,
+      "startsAt": "2026-11-05T00:30:00Z",
+      "endsAt": "2026-11-13T00:30:00Z",
+      "source": "https://worldofwarcraft.blizzard.com/en-us/news/24317678/set-your-campfire-ablaze-with-the-pouch-of-violet-dust"
+    },
+    {
+      "id": "forever-faction-badges",
+      "title": "Значки Альянса и Орды",
+      "description": "Значки для чата Twitch. Оформи подписку или подари её на подходящем канале World of Warcraft.",
+      "type": "subscription",
+      "startsAt": "2026-11-04T16:00:00Z",
+      "endsAt": "2026-12-01T08:00:00Z",
+      "source": "https://blog.twitch.tv/en/2026/11/04/world-of-warcraft-forever-is-here"
+    }
+  ]
+}

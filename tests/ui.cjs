@@ -7,6 +7,7 @@ const root = path.resolve(__dirname,'../app/src/main/assets');
 const initial = {
   region:'EU',favorite:'PVE',status:'saved',snapshot:JSON.parse(fs.readFileSync(path.join(root,'seed.json'))),sourceStatus:{},
   appUpdates:{installed:'0.18.0',status:'checked',available:false},apkDownload:{status:'idle'},textScale:100,
+  drops:JSON.parse(fs.readFileSync(path.join(root,'drops.json'))),
   characters:{characters:[],selected:'',results:[],status:'saved'},account:{configured:false},
   talentChanges:{entries:[{id:2,className:'Mage',at:'2026-11-08T12:00:00Z',items:['Обновлён билд мага.'],unread:true},{id:1,className:'Rogue',at:'2026-11-08T11:00:00Z',items:['Изменён порядок талантов.'],unread:true}],unread:2,latest:2},
   news:{items:JSON.parse(fs.readFileSync(path.join(root,'news-seed.json'))).slice(0,3).map(a=>({...a,title:a.titleRu,summary:a.summaryRu,unread:true,bookmarked:false})),unread:3,untranslated:0,status:'saved',translationStatus:'idle'}
@@ -23,7 +24,8 @@ const server = http.createServer((req,res)=>{
   await new Promise(r=>server.listen(0,'127.0.0.1',r));
   const browser=await chromium.launch({headless:true,executablePath:process.env.PULSE_CHROMIUM || undefined,args:['--no-sandbox']});
   try {
-    const page=await browser.newPage({viewport:{width:320,height:800}}), errors=[];
+    const page=await browser.newPage({viewport:{width:320,height:800},timezoneId:'Asia/Krasnoyarsk'}), errors=[];
+    await page.clock.setFixedTime(new Date('2026-11-10T06:00:00Z'));
     page.on('pageerror',e=>errors.push(e.message));
     await page.addInitScript(({initial,character})=>{
       window.__model=JSON.parse(localStorage.getItem('qa-state')||JSON.stringify(initial));
@@ -36,7 +38,8 @@ const server = http.createServer((req,res)=>{
         readNews(id){const n=window.__model.news;n.items.find(x=>x.id===id).unread=false;n.unread=n.items.filter(x=>x.unread).length;n.reader={id,status:'ready',body:{translation:'official',blocks:[{type:'p',text:'Тест полного текста новости.'}]}};save();},closeNews(){},showOriginal(){},translateNews(){},translateArticle(){},bookmarkNews(id){const a=window.__model.news.items.find(x=>x.id===id);a.bookmarked=!a.bookmarked;save();},newsViewed(){throw Error('whole-feed read is forbidden');},
         talentChangesViewed(id){const s=window.__model.talentChanges;s.entries.find(x=>x.id===id).unread=false;s.unread=s.entries.filter(x=>x.unread).length;save();},
         setTextScale(value){window.__model.textScale=value;save();},setTheme(value){window.__model.theme=value;save();},
-        openSource(value){window.__openedSource=value;},favorite(value){window.__model.favorite=value;save();},selectRegion(id){window.__model.region=id;save();}
+        openSource(value){window.__openedSource=value;},openDropSource(value){window.__openedDropSource=value;},
+        favorite(value){window.__model.favorite=value;save();},selectRegion(id){window.__model.region=id;save();}
       };
     },{initial,character:{...character,visualsVersion:2,gear:character.gear.map(item=>({...item,transmog:{id:2763,name:'Fisherman Knife'}}))}});
     const url=`http://127.0.0.1:${server.address().port}/ui/index.html`;
@@ -67,6 +70,24 @@ const server = http.createServer((req,res)=>{
     await navFits();
     await page.locator('[data-action="nav"][data-value="news"]').click();
     assert.equal(await page.evaluate(()=>window.__model.news.unread),3);
+    await page.getByRole('button',{name:'К Twitch Drops'}).click();
+    const drops = page.getByRole('region',{name:'Кампании Twitch Drops'});
+    const watch = drops.locator('article').filter({hasText:'Pouch of Violet Dust'});
+    assert.match(await watch.innerText(),/За просмотр 4 ч[\s\S]*13 нояб\., 07:30/);
+    assert.match(await drops.locator('article').filter({hasText:'Значки Альянса и Орды'}).innerText(),/За подписку/);
+    await watch.getByRole('button',{name:'Официальные условия'}).click();
+    assert.equal(await page.evaluate(()=>window.__openedDropSource),'forever-violet-dust');
+    await drops.getByRole('button',{name:'Смотреть на Twitch'}).click();
+    assert.equal(await page.evaluate(()=>window.__openedSource),'twitch-watch');
+    await drops.getByRole('button',{name:'Мои Drops'}).click();
+    assert.equal(await page.evaluate(()=>window.__openedSource),'twitch-inventory');
+    await fits('Twitch Drops at 320px');
+    await page.clock.setFixedTime(new Date('2026-11-13T00:30:00Z'));
+    await page.evaluate(()=>window.__save());
+    assert.equal(await watch.count(),0);
+    assert.equal(await drops.locator('article').count(),1);
+    await page.getByRole('button',{name:'Все новости'}).click();
+    assert.equal(await page.getByRole('button',{name:'К Twitch Drops'}).count(),0);
     await page.locator('[data-action="bookmark-news"]').first().click();
     await page.locator('[data-action="news-filter"][data-value="saved"]').click();assert.equal(await page.locator('.news-card').count(),1);
     await page.locator('[data-action="read-news"]').click();assert.equal(await page.evaluate(()=>window.__model.news.unread),2);await fits('news saved');

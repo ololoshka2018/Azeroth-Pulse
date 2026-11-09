@@ -3,7 +3,7 @@ android {
     namespace 'ru.ivan.azerothpulse'
     compileSdk 35
     buildToolsVersion '35.0.0'
-    defaultConfig { applicationId 'ru.ivan.azerothpulse'; minSdk 26; targetSdk 35; versionCode 25; versionName '0.18.7' }
+    defaultConfig { applicationId 'ru.ivan.azerothpulse'; minSdk 26; targetSdk 35; versionCode 26; versionName '1.1.0' }
     buildFeatures { buildConfig true }
     defaultConfig { buildConfigField "boolean", "TEST_BUILD", providers.gradleProperty("pulseTestBuild").getOrElse("false") }
     defaultConfig { buildConfigField "String", "BATTLENET_SERVICE_URL", groovy.json.JsonOutput.toJson(providers.gradleProperty("pulseApiBase").getOrElse("")) }
