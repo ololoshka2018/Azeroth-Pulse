@@ -414,11 +414,13 @@ public final class MainActivity extends Activity {
         }
         @JavascriptInterface public void openSource(String kind) {
             runOnUiThread(() -> {
+                String repo = "https://github.com/" + AppUpdates.REPOSITORY;
                 String url;
                 switch (kind) {
-                    case "issues": url = "https://github.com/ololoshka2018/Azeroth-Pulse/issues"; break;
-                    case "privacy": url = "https://github.com/ololoshka2018/Azeroth-Pulse/blob/main/PRIVACY.md"; break;
-                    case "licenses": url = "https://github.com/ololoshka2018/Azeroth-Pulse/blob/main/THIRD_PARTY.md"; break;
+                    case "github": url = repo; break;
+                    case "issues": url = repo + "/issues"; break;
+                    case "privacy": url = repo + "/blob/main/PRIVACY.md"; break;
+                    case "licenses": url = repo + "/blob/main/THIRD_PARTY.md"; break;
                     default: return;
                 }
                 try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))); }

@@ -108,7 +108,11 @@ function settingsScreen() {
     <p>Версия ${escape(state.appUpdates.installed)} ${state.testing ? '· тестовая сборка' : ''}</p>
     <h3>Размер текста</h3>${choices([[90,'Меньше'],[100,'Обычный'],[115,'Крупнее'],[130,'Большой']],state.textScale || 100,'text-scale','Размер текста')}
     <p class="fine">Настройка сохраняется на этом телефоне.</p>
-    <div class="dialog-actions"><button class="red-button" data-action="app-updates">Обновления</button><button class="red-button" data-action="open-source" data-value="issues">Сообщить об ошибке</button></div>
+    <div class="dialog-actions">
+      <button class="red-button" data-action="app-updates">Обновления</button>
+      <button class="red-button" data-action="open-source" data-value="github">GitHub проекта</button>
+      <button class="red-button" data-action="open-source" data-value="issues">Сообщить об ошибке</button>
+    </div>
     <h3>Источники</h3><p>Перепись и популярность: WoWCensus. Персонажи и новости: Blizzard. Деревья талантов: Armory WoW Forever. Подборки билдов: Mobalytics, MmonsteR, METAMMO.</p>
     <h3>О статистике</h3><p>Перепись показывает замеченных персонажей. Это выборка, а не текущий онлайн. Числа по расам и классам приблизительные.</p>
     <h3>Материалы и права</h3><p>Независимый фанатский проект. Оригинальный код — MIT. Игровые текстуры, значки, шрифт и названия World of Warcraft принадлежат Blizzard Entertainment и соответствующим правообладателям. Они не распространяются по MIT.</p>

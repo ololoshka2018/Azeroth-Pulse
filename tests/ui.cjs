@@ -35,7 +35,7 @@ const server = http.createServer((req,res)=>{
         searchCharacters(region,q){window.__model.characters={...window.__model.characters,searchRegion:region,query:q,results:[character],status:'checked'};save();},loadCharacter(){window.__model.characters.characters=[character];window.__model.characters.selected=character.key;save();},selectCharacter(key){window.__model.characters.selected=key;save();},refreshCharacter(){},removeCharacter(){window.__model.characters.characters=[];window.__model.characters.selected='';save();},
         readNews(id){const n=window.__model.news;n.items.find(x=>x.id===id).unread=false;n.unread=n.items.filter(x=>x.unread).length;n.reader={id,status:'ready',body:{translation:'official',blocks:[{type:'p',text:'Тест полного текста новости.'}]}};save();},closeNews(){},showOriginal(){},translateNews(){},translateArticle(){},bookmarkNews(id){const a=window.__model.news.items.find(x=>x.id===id);a.bookmarked=!a.bookmarked;save();},newsViewed(){throw Error('whole-feed read is forbidden');},
         talentChangesViewed(id){const s=window.__model.talentChanges;s.entries.find(x=>x.id===id).unread=false;s.unread=s.entries.filter(x=>x.unread).length;save();},
-        setTextScale(value){window.__model.textScale=value;save();},openSource(){},favorite(value){window.__model.favorite=value;save();},selectRegion(id){window.__model.region=id;save();}
+        setTextScale(value){window.__model.textScale=value;save();},openSource(value){window.__openedSource=value;},favorite(value){window.__model.favorite=value;save();},selectRegion(id){window.__model.region=id;save();}
       };
     },{initial,character:{...character,visualsVersion:2,gear:character.gear.map(item=>({...item,transmog:{id:2763,name:'Fisherman Knife'}}))}});
     const url=`http://127.0.0.1:${server.address().port}/ui/index.html`;
@@ -94,6 +94,8 @@ const server = http.createServer((req,res)=>{
     assert.equal(await page.locator('[data-action="talent-goal"][aria-pressed="true"]').getAttribute('data-value'),'pvp');
     await settingsTab.click();await page.locator('[data-action="text-scale"][data-value="130"]').click();await fits('large settings');
     assert.equal(await settingsTab.getAttribute('aria-current'),'page');
+    await page.getByRole('button',{name:'GitHub проекта'}).click();
+    assert.equal(await page.evaluate(()=>window.__openedSource),'github');
     await navFits();
     await nav.getByRole('button',{name:/Таланты/}).click();await fits('large talents');
     await characterTab.click();await fits('large character');
