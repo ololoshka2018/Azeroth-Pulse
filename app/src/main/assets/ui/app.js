@@ -457,7 +457,7 @@ window.acceptPulseState = encoded => {
   if (!Object.hasOwn(REGIONS, state.region)) state.region = 'EU';
   state.news ||= {items:[], unread:0, untranslated:0, status:'saved', translationStatus:'idle'};
   state.sourceStatus ||= {};
-  state.appUpdates ||= {installed:'0.18.4', status:'saved', available:false};
+  state.appUpdates ||= {installed:'0.18.5', status:'saved', available:false};
   state.characters ||= {characters:[],selected:'',results:[],status:'saved'};
   state.talentChanges ||= {entries:[], unread:0, latest:0};
   if (!MODE_IDS.includes(state.favorite)) state.favorite = 'PVE';
