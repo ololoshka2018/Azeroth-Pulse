@@ -35,7 +35,8 @@ const server = http.createServer((req,res)=>{
         searchCharacters(region,q){window.__model.characters={...window.__model.characters,searchRegion:region,query:q,results:[character],status:'checked'};save();},loadCharacter(){window.__model.characters.characters=[character];window.__model.characters.selected=character.key;save();},selectCharacter(key){window.__model.characters.selected=key;save();},refreshCharacter(){},removeCharacter(){window.__model.characters.characters=[];window.__model.characters.selected='';save();},
         readNews(id){const n=window.__model.news;n.items.find(x=>x.id===id).unread=false;n.unread=n.items.filter(x=>x.unread).length;n.reader={id,status:'ready',body:{translation:'official',blocks:[{type:'p',text:'Тест полного текста новости.'}]}};save();},closeNews(){},showOriginal(){},translateNews(){},translateArticle(){},bookmarkNews(id){const a=window.__model.news.items.find(x=>x.id===id);a.bookmarked=!a.bookmarked;save();},newsViewed(){throw Error('whole-feed read is forbidden');},
         talentChangesViewed(id){const s=window.__model.talentChanges;s.entries.find(x=>x.id===id).unread=false;s.unread=s.entries.filter(x=>x.unread).length;save();},
-        setTextScale(value){window.__model.textScale=value;save();},openSource(value){window.__openedSource=value;},favorite(value){window.__model.favorite=value;save();},selectRegion(id){window.__model.region=id;save();}
+        setTextScale(value){window.__model.textScale=value;save();},setTheme(value){window.__model.theme=value;save();},
+        openSource(value){window.__openedSource=value;},favorite(value){window.__model.favorite=value;save();},selectRegion(id){window.__model.region=id;save();}
       };
     },{initial,character:{...character,visualsVersion:2,gear:character.gear.map(item=>({...item,transmog:{id:2763,name:'Fisherman Knife'}}))}});
     const url=`http://127.0.0.1:${server.address().port}/ui/index.html`;
@@ -44,12 +45,15 @@ const server = http.createServer((req,res)=>{
     const nav = page.getByRole('navigation',{name:'Разделы'});
     const characterTab = nav.getByRole('button',{name:'Персонаж'});
     const settingsTab = nav.getByRole('button',{name:'Настройки'});
-    const navFits = async () => assert.ok(await nav.getByRole('button').evaluateAll(buttons =>
-      buttons.length === 6 && buttons.every(button => {
-        const target = button.getBoundingClientRect();
-        const label = button.lastElementChild.getBoundingClientRect();
-        return target.width >= 44 && label.left >= target.left && label.right <= target.right;
-      })), 'Bottom bar targets and labels fit');
+    const navFits = async () => {
+      await page.evaluate(() => document.fonts.ready);
+      assert.ok(await nav.getByRole('button').evaluateAll(buttons =>
+        buttons.length === 6 && buttons.every(button => {
+          const target = button.getBoundingClientRect();
+          const label = button.lastElementChild.getBoundingClientRect();
+          return target.width >= 44 && label.left >= target.left && label.right <= target.right;
+        })), 'Bottom bar targets and labels fit');
+    };
     await fits('worlds 320');
     await navFits();
     await page.locator('[data-action="nav"][data-value="news"]').click();
@@ -96,6 +100,29 @@ const server = http.createServer((req,res)=>{
     assert.equal(await settingsTab.getAttribute('aria-current'),'page');
     await page.getByRole('button',{name:'GitHub проекта'}).click();
     assert.equal(await page.evaluate(()=>window.__openedSource),'github');
+    const themes = page.getByRole('group',{name:'Тема оформления'});
+    assert.equal(await themes.getByRole('button').count(),5);
+    assert.equal(await page.locator('html').getAttribute('data-theme'),null);
+    const palette = new Set();
+    for (const id of ['royal','modern','parchment','contrast']) {
+      const option = themes.locator('[data-value="'+id+'"]');
+      await option.click();
+      assert.equal(await page.locator('html').getAttribute('data-theme'),id);
+      assert.equal(await option.getAttribute('aria-pressed'),'true');
+      palette.add(await page.locator('body').evaluate(el=>getComputedStyle(el).backgroundColor));
+      await fits(id+' settings');
+      await navFits();
+      await characterTab.click();
+      await fits(id+' character');
+      await settingsTab.click();
+    }
+    assert.equal(palette.size,4);
+    await page.reload();
+    assert.equal(await page.locator('html').getAttribute('data-theme'),'contrast');
+    await settingsTab.click();
+    await themes.locator('[data-value="classic"]').click();
+    assert.equal(await page.locator('html').getAttribute('data-theme'),null);
+    assert.equal(await themes.locator('[data-value="classic"]').getAttribute('aria-pressed'),'true');
     await navFits();
     await nav.getByRole('button',{name:/Таланты/}).click();await fits('large talents');
     await characterTab.click();await fits('large character');

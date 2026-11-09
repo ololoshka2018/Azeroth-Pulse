@@ -9,6 +9,27 @@ const MODES = {
 const MODE_IDS = Object.keys(MODES);
 const REGIONS = {EU:'Европа', US:'Америка'};
 const NAV = {worlds:'Миры', roster:'Население', talents:'Таланты', news:'Новости', character:'Персонаж', settings:'Настройки'};
+const THEMES = {
+  classic:['Классика', 'Игровые рамки и текстуры'],
+  royal:['Королевская', 'Тёмные карточки и золото'],
+  modern:['Современная', 'Лаконичная тёмная тема'],
+  parchment:['Пергамент', 'Светлый фон для чтения'],
+  contrast:['Контрастная', 'Крупный текст и чёткие границы']
+};
+const SYMBOLS = {
+  worlds:'M3 12h18M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm0 0a17 17 0 0 1 0 18 17 17 0 0 1 0-18Z',
+  roster:'M3 20v-2a4 4 0 0 1 4-4h5a4 4 0 0 1 4 4v2m2-6a4 4 0 0 1 3 4v2M9.5 4a3 3 0 1 0 0 6 3 3 0 0 0 0-6Zm7 0a3 3 0 0 1 0 6',
+  talents:'M12 6v15m0-15C8 3 4 3 2 4v14c4-1 7 0 10 3 3-3 6-4 10-3V4c-2-1-6-1-10 2Z',
+  news:'M5 3h14v18H5zm3 5h8m-8 4h8m-8 4h5',
+  character:'M4 12a8 8 0 0 1 16 0v5l-4 4v-7h-3v4h-2v-4H8v7l-4-4Z',
+  settings:'M12 2v3m0 14v3M2 12h3m14 0h3M5 5l2 2m10 10 2 2M5 19l2-2M17 7l2-2m0 7a7 7 0 1 0-14 0 7 7 0 0 0 14 0Zm-4 0a3 3 0 1 0-6 0 3 3 0 0 0 6 0Z',
+  shield:'M12 2l8 4v6c0 4-3 7-8 10-5-3-8-6-8-10V6Z',
+  swords:'M3 3h4l12 12m2 6-5-5m-3 3 6-6m2-10h-4l-5 5M3 21l5-5m3 3-6-6m-2-6 12 12',
+  book:'M4 5c0-1 1-2 2-2h13v18H6a2 2 0 0 1 0-4h13M4 5v14m4-11h7m-7 4h7',
+  'quest-book':'M5 3h14v18H5zm4 5a3 3 0 1 1 4 2.8c-1 .4-1 1.2-1 2.2m0 3h.01',
+  star:'m12 2 3 6.3 7 .9-5 4.9 1.2 6.9-6.2-3.3-6.2 3.3L7 14.1 2 9.2l7-.9Z',
+  watch:'M20 10a8 8 0 1 0-2 8m2-14v6h-6'
+};
 const NAMES = {
   Warrior:'Воин', Paladin:'Паладин', Hunter:'Охотник', Rogue:'Разбойник', Priest:'Жрец',
   Shaman:'Шаман', Mage:'Маг', Warlock:'Чернокнижник', Druid:'Друид',
@@ -47,7 +68,12 @@ function escape(value) {
 }
 function name(value) { return escape(NAMES[value] || value || ''); }
 function number(value) { return Number.isSafeInteger(value) ? integer.format(value) : '—'; }
+function symbol(key) {
+  return `<svg class="game-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"
+    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${SYMBOLS[key]}"/></svg>`;
+}
 function icon(key) {
+  if (state.theme !== 'classic' && (state.theme !== 'royal' || key === 'watch')) return symbol(key);
   return `<img class="game-icon" src="classic/${key}.png" alt="" draggable="false">`;
 }
 function classIcon(key) {
@@ -106,6 +132,12 @@ function settingsScreen() {
   return section('Настройки') + `<article class="panel settings-panel">
     <h3>Azeroth Pulse</h3>
     <p>Версия ${escape(state.appUpdates.installed)} ${state.testing ? '· тестовая сборка' : ''}</p>
+    <h3 id="theme-heading">Тема оформления</h3>
+    <div class="theme-options" role="group" aria-labelledby="theme-heading">${Object.entries(THEMES).map(([id,[label,detail]]) =>
+      `<button class="theme-choice" data-action="app-theme" data-value="${id}" aria-pressed="${id === state.theme}">
+        <span class="theme-swatch" aria-hidden="true"></span>
+        <span><strong>${label}</strong><small>${detail}</small></span>
+      </button>`).join('')}</div>
     <h3>Размер текста</h3>${choices([[90,'Меньше'],[100,'Обычный'],[115,'Крупнее'],[130,'Большой']],state.textScale || 100,'text-scale','Размер текста')}
     <p class="fine">Настройка сохраняется на этом телефоне.</p>
     <div class="dialog-actions">
@@ -268,7 +300,11 @@ function newsScreen() {
 
 function render(scrollToTop = false) {
   const scroll = window.scrollY;
-  document.documentElement.style.fontSize = `${14 * (state.textScale || 100) / 100}px`;
+  const root = document.documentElement;
+  if (state.theme === 'classic') root.removeAttribute('data-theme');
+  else root.dataset.theme = state.theme;
+  root.style.fontSize = `${(state.theme === 'contrast' ? 16 : 14) * (state.textScale || 100) / 100}px`;
+  const focusedTheme = app.querySelector('.theme-choice:focus')?.dataset.value;
   const profileFocus = app.querySelector('#character-query:focus');
   const inputPosition = profileFocus?.selectionStart;
   Talents.rememberFolds(app);
@@ -292,7 +328,7 @@ function render(scrollToTop = false) {
   app.innerHTML = `<div class="game-window">
     <header class="window-title${showRegion ? '' : ' personal-title'}">${showRegion ? `<button class="region-toggle" data-action="region-menu" aria-label="Регион: ${REGIONS[state.region]} (${state.region})"
       aria-expanded="${regionMenuOpen}" aria-controls="region-options"><span>${state.region}</span><span aria-hidden="true">▾</span></button>` : ''}
-      <div><h1>Azeroth Pulse</h1><button class="app-version" data-action="app-updates"
+      <div class="window-brand"><h1>Azeroth Pulse</h1><button class="app-version" data-action="app-updates"
         aria-label="Версия приложения ${escape(state.appUpdates.installed)} и обновления">FOREVER · v${escape(state.appUpdates.installed)}${state.appUpdates.available ? ' ●' : ''}</button></div>
       ${showRefresh ? `<button class="red-button refresh" data-action="refresh" ${status === 'loading' ? 'disabled' : ''}>${icon('watch')}${isCharacter && status === 'loading' ? 'Обновляем…' : 'Обновить'}</button>` : ''}
     </header>
@@ -309,7 +345,7 @@ function render(scrollToTop = false) {
       const badge = count > 0 ? `<b class="news-badge">${count}</b>` : '';
       const alertLabel = id === 'news' ? `Новости, новых публикаций: ${unread}` :
         `Таланты, новых изменений: ${count}`;
-      return `<button data-action="nav" data-value="${id}" ${tab === id ? 'aria-current="page"' : ''}${badge ? ` aria-label="${alertLabel}"` : ''}><span class="action-icon icon-${id}" aria-hidden="true">${badge}</span><span>${label}</span></button>`;
+      return `<button data-action="nav" data-value="${id}" ${tab === id ? 'aria-current="page"' : ''}${badge ? ` aria-label="${alertLabel}"` : ''}><span class="action-icon icon-${id}" aria-hidden="true">${state.theme === 'classic' ? '' : symbol(id)}${badge}</span><span>${label}</span></button>`;
     }).join('')}</div></nav>${appUpdatesOpen ? appUpdateDialog() : ''}`;
   if (appUpdatesOpen) {
     app.querySelector('.app-dialog').scrollTop = dialogScroll;
@@ -320,6 +356,7 @@ function render(scrollToTop = false) {
     input?.focus({preventScroll:true});
     try { input?.setSelectionRange(inputPosition,inputPosition); } catch (_) {}
   }
+  if (focusedTheme) app.querySelector(`.theme-choice[data-value="${focusedTheme}"]`)?.focus({preventScroll:true});
   window.scrollTo(0, scrollToTop ? 0 : scroll);
 }
 
@@ -353,6 +390,11 @@ app.addEventListener('click', event => {
   if (!button || !state) return;
   const {action,value} = button.dataset;
   switch (action) {
+    case 'app-theme':
+      if (!Object.hasOwn(THEMES, value)) return;
+      if (window.Pulse?.setTheme) window.Pulse.setTheme(value);
+      else { state.theme = value; render(); }
+      return;
     case 'text-scale': window.Pulse?.setTextScale?.(Number(value)); if (!window.Pulse) { state.textScale = Number(value); render(); } return;
     case 'open-source': window.Pulse?.openSource?.(value); return;
     case 'character-talents': tab = 'talents'; Talents.useCharacter(Characters.selected()); render(true); Talents.load(); return;
@@ -457,7 +499,8 @@ window.acceptPulseState = encoded => {
   if (!Object.hasOwn(REGIONS, state.region)) state.region = 'EU';
   state.news ||= {items:[], unread:0, untranslated:0, status:'saved', translationStatus:'idle'};
   state.sourceStatus ||= {};
-  state.appUpdates ||= {installed:'0.18.5', status:'saved', available:false};
+  state.appUpdates ||= {installed:'0.18.6', status:'saved', available:false};
+  if (!Object.hasOwn(THEMES, state.theme)) state.theme = 'classic';
   state.characters ||= {characters:[],selected:'',results:[],status:'saved'};
   state.talentChanges ||= {entries:[], unread:0, latest:0};
   if (!MODE_IDS.includes(state.favorite)) state.favorite = 'PVE';

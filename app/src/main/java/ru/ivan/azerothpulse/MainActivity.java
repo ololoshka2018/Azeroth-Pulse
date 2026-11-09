@@ -40,6 +40,8 @@ public final class MainActivity extends Activity {
     private static final String APP_HOST = "appassets.androidplatform.net";
     private static final String APP_URL = "https://" + APP_HOST + "/ui/index.html";
     private static final String CACHE = "snapshotV2";
+    private static final String THEME = "appTheme";
+    private static final java.util.List<String> THEMES = Arrays.asList("classic", "royal", "modern", "parchment", "contrast");
     private static final long TALENT_REFRESH_INTERVAL = 30 * 60 * 1000L;
     private final ExecutorService network = Executors.newFixedThreadPool(5);
     private final Map<String, RegionState> regions = new HashMap<>();
@@ -162,7 +164,8 @@ public final class MainActivity extends Activity {
         String type;
         switch (path) {
             case "/ui/index.html": type = "text/html"; break;
-            case "/ui/theme.css": type = "text/css"; break;
+            case "/ui/theme.css":
+            case "/ui/appearance.css": type = "text/css"; break;
             case "/ui/profile.js": type = "application/javascript"; break;
             case "/ui/app.js": type = "application/javascript"; break;
             case "/ui/talents.js": type = "application/javascript"; break;
@@ -231,6 +234,7 @@ public final class MainActivity extends Activity {
                 .put("sourceStatus", current.sourceStatus).put("appUpdates", appUpdates.state())
                 .put("talentChanges", talentChanges.state()).put("characters", characters.state())
                 .put("testing", BuildConfig.TEST_BUILD).put("account", account.state()).put("apkDownload", apkUpdater.state()).put("textScale", preferences.getInt("textScale", 100))
+                .put("theme", preferences.getString(THEME, "classic"))
                 .put("talentStats", talentStats).put("talentStatsStatus", talentStatsStatus).toString();
         } catch (Exception invalidState) {
             throw new IllegalStateException(invalidState);
@@ -410,6 +414,12 @@ public final class MainActivity extends Activity {
         @JavascriptInterface public void setTextScale(int value) {
             if (value == 90 || value == 100 || value == 115 || value == 130) runOnUiThread(() -> {
                 preferences.edit().putInt("textScale", value).apply(); publishState();
+            });
+        }
+        @JavascriptInterface public void setTheme(String value) {
+            if (THEMES.contains(value)) runOnUiThread(() -> {
+                preferences.edit().putString(THEME, value).apply();
+                publishState();
             });
         }
         @JavascriptInterface public void openSource(String kind) {
