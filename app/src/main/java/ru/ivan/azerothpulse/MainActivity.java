@@ -50,16 +50,26 @@ public final class MainActivity extends Activity {
     private WebView screen;
     private NewsBoard news;
     private AppUpdates appUpdates;
+    private ApkUpdater apkUpdater;
+    private CharacterBoard characters;
+    private AccountBoard account;
     private TalentChanges talentChanges;
     private final Handler main = new Handler(Looper.getMainLooper());
     private final Runnable talentsTick = new Runnable() {
         @Override public void run() {
-            String selected = preferences.getString("talentClass", "Rogue");
+            String selected = selectedTalentClass();
             refreshTalentCatalog(selected, false);
             for (String name : TalentStats.CLASSES) {
                 if (!selected.equals(name)) refreshTalentCatalog(name, false);
             }
             main.postDelayed(this, TALENT_REFRESH_INTERVAL);
+        }
+    };
+    private final Runnable updatesTick = new Runnable() {
+        @Override public void run() {
+            if (closed) return;
+            appUpdates.check(false);
+            main.postDelayed(this, appUpdates.nextCheckDelay());
         }
     };
     private JSONObject talentStats;
@@ -92,6 +102,9 @@ public final class MainActivity extends Activity {
         talentCache = getSharedPreferences("talentCatalogV1", MODE_PRIVATE);
         talentChanges = new TalentChanges(talentCache);
         appUpdates = new AppUpdates(preferences, network, main, this::publishState, BuildConfig.VERSION_NAME);
+        apkUpdater = new ApkUpdater(this, network, main, this::publishState);
+        characters = new CharacterBoard(preferences, network, main, this::publishState);
+        account = new AccountBoard(this, preferences, network, main, this::publishState);
         try { talentSeed = new JSONObject(assetText("ui/talents-data.json")); }
         catch (Exception unavailable) { talentSeed = new JSONObject(); }
         try { talentStats = new JSONObject(preferences.getString("talentStatsV1", "{}")); }
@@ -130,7 +143,8 @@ public final class MainActivity extends Activity {
             @Override public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
                 Uri uri = request.getUrl();
                 if ("https".equals(uri.getScheme()) && APP_HOST.equals(uri.getHost())) {
-                    WebResourceResponse response = localAsset(uri.getPath());
+                    WebResourceResponse response = "/media".equals(uri.getPath())
+                        ? CharacterMedia.read(MainActivity.this, uri.getQueryParameter("url"), uri.getQueryParameter("v")) : localAsset(uri.getPath());
                     if (response != null) return response;
                 }
                 return new WebResourceResponse("text/plain", "UTF-8", 403, "Blocked",
@@ -140,6 +154,7 @@ public final class MainActivity extends Activity {
         container.addView(screen, new FrameLayout.LayoutParams(-1, -1));
         setContentView(container);
         screen.loadUrl(APP_URL);
+        account.callback(getIntent().getData());
     }
 
     private WebResourceResponse localAsset(String path) {
@@ -148,6 +163,7 @@ public final class MainActivity extends Activity {
         switch (path) {
             case "/ui/index.html": type = "text/html"; break;
             case "/ui/theme.css": type = "text/css"; break;
+            case "/ui/profile.js": type = "application/javascript"; break;
             case "/ui/app.js": type = "application/javascript"; break;
             case "/ui/talents.js": type = "application/javascript"; break;
             case "/ui/talents-data.json": type = "application/json"; break;
@@ -213,7 +229,8 @@ public final class MainActivity extends Activity {
             uiState = new JSONObject().put("region", region).put("snapshot", current.snapshot)
                 .put("favorite", current.favorite).put("status", current.status).put("news", news.state())
                 .put("sourceStatus", current.sourceStatus).put("appUpdates", appUpdates.state())
-                .put("talentChanges", talentChanges.state())
+                .put("talentChanges", talentChanges.state()).put("characters", characters.state())
+                .put("testing", BuildConfig.TEST_BUILD).put("account", account.state()).put("apkDownload", apkUpdater.state()).put("textScale", preferences.getInt("textScale", 100))
                 .put("talentStats", talentStats).put("talentStatsStatus", talentStatsStatus).toString();
         } catch (Exception invalidState) {
             throw new IllegalStateException(invalidState);
@@ -222,6 +239,7 @@ public final class MainActivity extends Activity {
 
     private void publishState() {
         updateState();
+        if (screen == null || closed) return;
         screen.evaluateJavascript("window.acceptPulseState && window.acceptPulseState(" + JSONObject.quote(uiState) + ")", null);
     }
 
@@ -268,10 +286,11 @@ public final class MainActivity extends Activity {
         if (closed || !TalentStats.isClass(name) || talentsLoading.contains(name)) return;
         long now = SystemClock.elapsedRealtime();
         Long last = talentAttempts.get(name);
-        if (!force && last != null && now - last < TALENT_REFRESH_INTERVAL) return;
+        long interval = name.equals(selectedTalentClass()) ? TALENT_REFRESH_INTERVAL : 6 * 60 * 60 * 1000L;
+        if (!force && last != null && now - last < interval) return;
         long savedAttempt = talentCache.getLong("attempt." + name, 0);
         long age = System.currentTimeMillis() - savedAttempt;
-        if (!force && last == null && age >= 0 && age < TALENT_REFRESH_INTERVAL) return;
+        if (!force && last == null && age >= 0 && age < interval) return;
         talentAttempts.put(name, now);
         talentCache.edit().putLong("attempt." + name, System.currentTimeMillis()).apply();
         talentsLoading.add(name);
@@ -354,6 +373,17 @@ public final class MainActivity extends Activity {
         if (region.equals(target.id)) publishState();
     }
 
+    private String talentContext() { return characters == null ? "" : characters.context(); }
+    private JSONObject savedTalentPreferences() {
+        try { return new JSONObject(preferences.getString("talentChoiceV2." + talentContext(), "{}")); }
+        catch (Exception invalid) { return new JSONObject(); }
+    }
+    private String selectedTalentClass() {
+        JSONObject selected = characters == null ? null : characters.selected();
+        String value = selected == null ? savedTalentPreferences().optString("className", preferences.getString("talentClass", "Rogue")) : selected.optString("className");
+        return TalentStats.isClass(value) ? value : "Rogue";
+    }
+
     private final class AppActions {
         @JavascriptInterface public String initial() { return uiState; }
 
@@ -365,16 +395,47 @@ public final class MainActivity extends Activity {
 
         @JavascriptInterface public void checkAppUpdates() { runOnUiThread(() -> appUpdates.check(true)); }
 
-        @JavascriptInterface public void downloadAppUpdate() {
-            runOnUiThread(() -> {
-                if (closed) return;
-                String address = appUpdates.download();
-                if (address.isEmpty()) return;
-                try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(address))); }
-                catch (ActivityNotFoundException unavailable) {
-                    android.widget.Toast.makeText(MainActivity.this, "Для скачивания нужен браузер.", android.widget.Toast.LENGTH_LONG).show();
-                }
+        @JavascriptInterface public void downloadAppUpdate() { runOnUiThread(() -> apkUpdater.download(appUpdates.release())); }
+        @JavascriptInterface public void installAppUpdate() { runOnUiThread(apkUpdater::install); }
+        @JavascriptInterface public void cancelAppDownload() { runOnUiThread(apkUpdater::cancel); }
+        @JavascriptInterface public void loginAccount(String region) { runOnUiThread(() -> account.login(region)); }
+        @JavascriptInterface public void refreshAccount() { runOnUiThread(account::refresh); }
+        @JavascriptInterface public void logoutAccount() { runOnUiThread(account::logout); }
+        @JavascriptInterface public void searchCharacters(String id, String query) { runOnUiThread(() -> characters.search(id, query)); }
+        @JavascriptInterface public void loadCharacter(String id, String slug) { runOnUiThread(() -> characters.load(id, slug)); }
+        @JavascriptInterface public void refreshCharacter() { runOnUiThread(characters::refresh); }
+        @JavascriptInterface public void selectCharacter(String key) { runOnUiThread(() -> characters.select(key)); }
+        @JavascriptInterface public void removeCharacter(String key) { runOnUiThread(() -> characters.remove(key)); }
+        @JavascriptInterface public void bookmarkNews(String id) { runOnUiThread(() -> news.bookmark(id)); }
+        @JavascriptInterface public void setTextScale(int value) {
+            if (value == 90 || value == 100 || value == 115 || value == 130) runOnUiThread(() -> {
+                preferences.edit().putInt("textScale", value).apply(); publishState();
             });
+        }
+        @JavascriptInterface public void openSource(String kind) {
+            runOnUiThread(() -> {
+                String url;
+                switch (kind) {
+                    case "issues": url = "https://github.com/ololoshka2018/Azeroth-Pulse/issues"; break;
+                    case "privacy": url = "https://github.com/ololoshka2018/Azeroth-Pulse/blob/main/PRIVACY.md"; break;
+                    case "licenses": url = "https://github.com/ololoshka2018/Azeroth-Pulse/blob/main/THIRD_PARTY.md"; break;
+                    default: return;
+                }
+                try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))); }
+                catch (ActivityNotFoundException unavailable) { android.widget.Toast.makeText(MainActivity.this, "Нужен браузер для открытия ссылки.", android.widget.Toast.LENGTH_SHORT).show(); }
+            });
+        }
+        @JavascriptInterface public String talentPreferences() { return savedTalentPreferences().toString(); }
+        @JavascriptInterface public void saveTalentPreferences(String encoded) {
+            try {
+                JSONObject value = new JSONObject(encoded);
+                String name = value.getString("className"), goal = value.getString("goal"), build = value.optString("build");
+                int level = value.getInt("level");
+                if (!TalentStats.isClass(name) || !Arrays.asList("leveling", "dungeons", "raid", "pvp").contains(goal)
+                    || level < 9 || level > 60 || build.length() > 250) return;
+                JSONObject safe = new JSONObject().put("className", name).put("goal", goal).put("build", build).put("level", level);
+                preferences.edit().putString("talentChoiceV2." + talentContext(), safe.toString()).apply();
+            } catch (Exception invalid) { /* Ignore invalid bridge input. */ }
         }
 
         @JavascriptInterface public void talentChangesViewed(long latest) {
@@ -395,7 +456,7 @@ public final class MainActivity extends Activity {
             return TalentStats.isClass(name) ? talentCache.getString(name, "") : "";
         }
 
-        @JavascriptInterface public String talentClass() { return preferences.getString("talentClass", "Rogue"); }
+        @JavascriptInterface public String talentClass() { return selectedTalentClass(); }
 
         @JavascriptInterface public int talentLevel(String name) {
             return TalentStats.isClass(name) ? preferences.getInt("talentLevel." + name, 9) : 9;
@@ -407,7 +468,7 @@ public final class MainActivity extends Activity {
             }
         }
 
-        @JavascriptInterface public void newsViewed() { runOnUiThread(news::viewed); }
+        @JavascriptInterface public void newsViewed(String id) { runOnUiThread(() -> news.viewed(id)); }
 
         @JavascriptInterface public void translateNews() { runOnUiThread(news::enableTranslation); }
 
@@ -440,19 +501,26 @@ public final class MainActivity extends Activity {
 
     }
 
+    @Override protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent); setIntent(intent); account.callback(intent.getData());
+    }
+
     @Override protected void onResume() {
         super.onResume();
         news.resume();
         publishState();
         main.removeCallbacks(talentsTick);
         if (talentSeed.optJSONObject("classes") != null) talentsTick.run();
-        appUpdates.check(false);
+        main.removeCallbacks(updatesTick);
+        updatesTick.run();
+        apkUpdater.resume();
         screen.evaluateJavascript("window.refreshVisibleTalents && window.refreshVisibleTalents()", null);
     }
 
     @Override protected void onPause() {
         news.pause();
         main.removeCallbacks(talentsTick);
+        main.removeCallbacks(updatesTick);
         super.onPause();
     }
 
@@ -466,6 +534,11 @@ public final class MainActivity extends Activity {
         closed = true;
         news.close();
         appUpdates.close();
+        apkUpdater.close();
+        characters.close();
+        account.close();
+        main.removeCallbacks(talentsTick);
+        main.removeCallbacks(updatesTick);
         network.shutdownNow();
         if (screen != null) {
             screen.removeJavascriptInterface("Pulse");

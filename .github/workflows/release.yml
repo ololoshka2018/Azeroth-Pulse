@@ -2,6 +2,12 @@ name: Signed release
 
 on:
   workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the tested version on GitHub Releases
+        type: boolean
+        required: true
+        default: false
 
 permissions:
   contents: read
@@ -45,7 +51,14 @@ jobs:
         run: |
           version=$(python3 -c "import xml.etree.ElementTree as E; print(E.parse('app/src/main/AndroidManifest.xml').getroot().attrib['{http://schemas.android.com/apk/res/android}versionName'])")
           python3 scripts/sign_release.py app/build/outputs/apk/release/app-release-unsigned.apk "build/Azeroth-Pulse-$version.apk"
+      - name: Save signed APK for testing
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: signed-apk
+          path: build/Azeroth-Pulse-*
+          if-no-files-found: error
       - name: Publish release
+        if: inputs.publish
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

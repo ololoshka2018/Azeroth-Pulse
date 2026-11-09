@@ -37,7 +37,34 @@ public final class TalentChangesTest {
         JSONObject effects = catalog();
         effects.getJSONArray("trees").getJSONObject(0).getJSONArray("nodes").getJSONObject(0)
             .getJSONArray("effects").getJSONObject(0).put("fingerprint", "effect-two");
-        assertTrue(TalentChanges.diff(catalog(), effects).toString().contains("описания"));
+        assertEquals("«Точность» — изменение описания (ранги 1).", TalentChanges.diff(catalog(), effects).getString(0));
+    }
+
+    @Test public void ignoresGameBuildNumberAndMissingDescriptions() throws Exception {
+        JSONObject incomplete = catalog().put("version", "1.60.1.70862");
+        JSONObject node = incomplete.getJSONArray("trees").getJSONObject(0).getJSONArray("nodes").getJSONObject(0);
+        node.put("req", 0).put("effects", new JSONArray().put(JSONObject.NULL));
+        assertEquals(0, TalentChanges.diff(catalog(), incomplete).length());
+        assertEquals(0, TalentChanges.diff(incomplete, catalog()).length());
+        node.put("max", 2);
+        assertTrue(TalentChanges.diff(catalog(), incomplete).getString(0).contains("максимум очков 3 → 2"));
+    }
+
+    @Test public void hidesLegacyNoiseAndKeepsBuildHistory() throws Exception {
+        Map<String, Object> stored = new HashMap<>();
+        JSONArray history = new JSONArray()
+            .put(new JSONObject().put("id",2).put("items",new JSONArray()
+                .put("Изменены таланты или их описания. Точность.")
+                .put("Обновлено дерево талантов 1.60.1.70790 → 1.60.1.70862.")))
+            .put(new JSONObject().put("id",1).put("items",new JSONArray()
+                .put("Изменены таланты или их описания. Точность.")
+                .put("Добавлен билд «Бой».")));
+        stored.put("talentChangesV1",history.toString());
+        stored.put("talentChangesSequence",2L);
+        JSONObject state = new TalentChanges(preferences(stored)).state();
+        assertEquals(1,state.getInt("unread"));
+        assertEquals(1,state.getJSONArray("entries").length());
+        assertEquals("Добавлен билд «Бой».",state.getJSONArray("entries").getJSONObject(0).getJSONArray("items").getString(0));
     }
 
     @Test public void doesNotReportRemovalDuringPartialOutage() throws Exception {
@@ -66,11 +93,38 @@ public final class TalentChangesTest {
         assertEquals(1, tracker.state().getJSONArray("entries").length());
     }
 
+    @Test public void viewingOneEntryDoesNotReadOtherClasses() throws Exception {
+        Map<String, Object> stored = new HashMap<>();
+        TalentChanges tracker = new TalentChanges(preferences(stored));
+        JSONObject changed = catalog();
+        changed.getJSONArray("builds").getJSONObject(0).put("order", new JSONArray("[2,1,1]"));
+        tracker.saveCatalog("Rogue", catalog(), changed);
+        tracker.saveCatalog("Mage", catalog(), changed);
+        tracker.viewed(2);
+        assertEquals(1, tracker.state().getInt("unread"));
+        tracker.viewed(1);
+        assertEquals(0, tracker.state().getInt("unread"));
+    }
+
+    @Test public void translatedEffectsRetainTheirFingerprint() throws Exception {
+        String original = "Increases hit chance by 1%.";
+        String fingerprint = ApkUpdater.hex(java.security.MessageDigest.getInstance("SHA-256").digest(original.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        JSONObject talent = new JSONObject().put("desc",new JSONArray().put(original));
+        JSONObject known = new JSONObject().put("effects",new JSONArray().put(new JSONObject().put("fingerprint",fingerprint).put("text","Повышает шанс попадания на 1%.").put("lang","ru")));
+        JSONObject effect = TalentCatalog.effects(talent, known, 1).getJSONObject(0);
+        assertEquals(fingerprint, effect.getString("fingerprint"));
+        assertEquals("ru",effect.getString("lang"));
+        JSONObject before = catalog(), after = catalog();
+        before.getJSONArray("trees").getJSONObject(0).getJSONArray("nodes").getJSONObject(0).put("effects",known.getJSONArray("effects"));
+        after.getJSONArray("trees").getJSONObject(0).getJSONArray("nodes").getJSONObject(0).put("effects",new JSONArray().put(effect));
+        assertEquals(0,TalentChanges.diff(before,after).length());
+    }
+
     private static SharedPreferences preferences(Map<String, Object> stored) {
         return (SharedPreferences) Proxy.newProxyInstance(TalentChangesTest.class.getClassLoader(),
             new Class[]{SharedPreferences.class}, (proxy, method, args) -> {
                 switch (method.getName()) {
-                    case "getString": case "getLong": return stored.getOrDefault((String) args[0], args[1]);
+                    case "getString": case "getLong": case "getStringSet": return stored.getOrDefault((String) args[0], args[1]);
                     case "edit":
                         Map<String, Object> pending = new HashMap<>();
                         return Proxy.newProxyInstance(TalentChangesTest.class.getClassLoader(),

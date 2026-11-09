@@ -79,6 +79,26 @@
     ],
     "operation": "copy"
   },
+  "character.png": {
+    "textures": [
+      {
+        "repo": "NSO73/WoW-Vanilla-Addon-Resources",
+        "revision": "42bbe067f2d0054477927e156c2342ddc73f2f60",
+        "path": "Interface/Icons/INV_Helmet_02.png"
+      }
+    ],
+    "operation": "copy"
+  },
+  "settings.png": {
+    "textures": [
+      {
+        "repo": "NSO73/WoW-Vanilla-Addon-Resources",
+        "revision": "42bbe067f2d0054477927e156c2342ddc73f2f60",
+        "path": "Interface/Icons/INV_Misc_Gear_01.png"
+      }
+    ],
+    "operation": "copy"
+  },
   "swords.png": {
     "textures": [
       {

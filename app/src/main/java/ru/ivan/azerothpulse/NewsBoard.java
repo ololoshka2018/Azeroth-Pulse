@@ -35,6 +35,8 @@ final class NewsBoard {
     private final Handler main = new Handler(Looper.getMainLooper());
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private final Set<String> seen;
+    private final Set<String> bookmarks;
+    private JSONArray savedItems;
     private final NewsReader reader;
     private final Runnable poll = this::poll;
     private JSONArray items;
@@ -52,23 +54,33 @@ final class NewsBoard {
         this.changed = changed;
         reader = new NewsReader(preferences, changed);
         seen = new HashSet<>(preferences.getStringSet(SEEN, Collections.emptySet()));
+        bookmarks = new HashSet<>(preferences.getStringSet("newsBookmarksV1", Collections.emptySet()));
+        try { savedItems = new JSONArray(preferences.getString("savedNewsV1", "[]")); }
+        catch (JSONException invalid) { savedItems = new JSONArray(); }
         JSONArray cached;
         try { cached = new JSONArray(preferences.getString(CACHE, "[]")); }
         catch (JSONException invalid) { cached = new JSONArray(); }
         items = BlizzardNews.merge(cached, seed);
     }
 
+    static String display(JSONObject item, String field) {
+        String localized = item.optString(field + "Ru");
+        return localized.isEmpty() ? item.optString(field) : localized;
+    }
+
     JSONObject state() throws JSONException {
         int unread = 0;
         int untranslated = 0;
         JSONArray cards = new JSONArray();
-        for (int i = 0; i < items.length(); i++) {
-            JSONObject item = items.getJSONObject(i);
-            if (!seen.contains(item.getString("version"))) unread++;
+        JSONArray visible = visibleItems();
+        for (int i = 0; i < visible.length(); i++) {
+            JSONObject item = visible.getJSONObject(i);
+            if (!seen.contains(item.getString("version")) && contains(items, item.optString("id"))) unread++;
             if (item.optString("titleRu").isEmpty()) untranslated++;
             cards.put(new JSONObject().put("id", item.getString("id"))
                 .put("publishedAt", item.getString("publishedAt"))
-                .put("title", item.optString("titleRu")).put("summary", item.optString("summaryRu"))
+                .put("title", display(item, "title")).put("summary", display(item, "summary"))
+                .put("unread", !seen.contains(item.getString("version"))).put("bookmarked", bookmarks.contains(item.getString("id")))
                 .put("translation", item.optString("translation")));
         }
         return new JSONObject().put("items", cards).put("unread", unread).put("untranslated", untranslated)
@@ -126,6 +138,7 @@ final class NewsBoard {
             status = english == null || russian == null ? "partial" : "checked";
             Set<String> current = new HashSet<>();
             for (int i = 0; i < items.length(); i++) current.add(items.optJSONObject(i).optString("version"));
+            for (int i = 0; i < savedItems.length(); i++) current.add(savedItems.optJSONObject(i).optString("version"));
             seen.retainAll(current);
             preferences.edit().putString(CACHE, items.toString()).putStringSet(SEEN, new HashSet<>(seen))
                 .putString(CHECKED, Instant.now().toString()).apply();
@@ -134,10 +147,51 @@ final class NewsBoard {
         translateIfEnabled();
     }
 
-    void viewed() {
+    private static boolean contains(JSONArray array, String id) {
+        for (int i = 0; i < array.length(); i++) if (id.equals(array.optJSONObject(i).optString("id"))) return true;
+        return false;
+    }
+
+    private JSONArray visibleItems() {
+        JSONArray all = new JSONArray();
+        for (int i = 0; i < items.length(); i++) all.put(items.optJSONObject(i));
+        for (int i = 0; i < savedItems.length(); i++) {
+            JSONObject item = savedItems.optJSONObject(i);
+            if (item != null && bookmarks.contains(item.optString("id")) && !contains(all, item.optString("id"))) all.put(item);
+        }
+        return all;
+    }
+
+    void bookmark(String id) {
+        if (closed) return;
+        if (bookmarks.contains(id)) bookmarks.remove(id);
+        else {
+            if (bookmarks.size() >= 50) return;
+            JSONArray all = visibleItems();
+            for (int i = 0; i < all.length(); i++) {
+                JSONObject item = all.optJSONObject(i);
+                if (id.equals(item.optString("id"))) { bookmarks.add(id); break; }
+            }
+        }
+        JSONArray next = new JSONArray();
+        JSONArray all = visibleItems();
+        for (int i = 0; i < all.length(); i++) {
+            JSONObject item = all.optJSONObject(i);
+            if (bookmarks.contains(item.optString("id"))) next.put(item);
+        }
+        savedItems = next;
+        preferences.edit().putStringSet("newsBookmarksV1", new HashSet<>(bookmarks)).putString("savedNewsV1", next.toString()).apply();
+        changed.run();
+    }
+
+    void viewed(String id) {
         if (closed) return;
         boolean updated = false;
-        for (int i = 0; i < items.length(); i++) updated |= seen.add(items.optJSONObject(i).optString("version"));
+        JSONArray all = visibleItems();
+        for (int i = 0; i < all.length(); i++) {
+            JSONObject item = all.optJSONObject(i);
+            if (id.equals(item.optString("id"))) updated |= seen.add(item.optString("version"));
+        }
         if (updated) {
             preferences.edit().putStringSet(SEEN, new HashSet<>(seen)).apply();
             changed.run();
@@ -146,9 +200,11 @@ final class NewsBoard {
 
     void read(String id) {
         if (closed) return;
-        for (int i = 0; i < items.length(); i++) {
-            JSONObject item = items.optJSONObject(i);
+        JSONArray all = visibleItems();
+        for (int i = 0; i < all.length(); i++) {
+            JSONObject item = all.optJSONObject(i);
             if (!item.optString("id").equals(id)) continue;
+            viewed(id);
             try {
                 String address = item.getString("url");
                 if (id.equals(BlizzardNews.articleId(URI.create(address)))) {

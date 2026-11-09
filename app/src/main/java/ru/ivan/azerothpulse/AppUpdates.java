@@ -2,7 +2,6 @@ package ru.ivan.azerothpulse;
 
 import android.content.SharedPreferences;
 import android.os.Handler;
-import android.os.SystemClock;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
@@ -24,7 +23,7 @@ final class AppUpdates {
     private final String installed;
     private JSONObject release;
     private String status = "saved";
-    private long lastAttempt = -INTERVAL;
+    private long lastAttempt;
     private boolean closed;
 
     AppUpdates(SharedPreferences preferences, ExecutorService worker, Handler main, Runnable changed, String installed) {
@@ -33,6 +32,7 @@ final class AppUpdates {
         this.main = main;
         this.changed = changed;
         this.installed = installed;
+        lastAttempt = preferences.getLong("appReleaseAttemptV2", 0);
         try {
             JSONObject cached = new JSONObject(preferences.getString(CACHE, "{}"));
             if (isVersion(cached.optString("version")) && validDownload(cached.optString("download"))) release = cached;
@@ -48,9 +48,10 @@ final class AppUpdates {
     }
 
     void check(boolean force) {
-        long now = SystemClock.elapsedRealtime();
-        if (closed || "loading".equals(status) || (!force && now - lastAttempt < INTERVAL)) return;
+        long now = System.currentTimeMillis();
+        if (closed || "loading".equals(status) || (!force && now >= lastAttempt && now - lastAttempt < INTERVAL)) return;
         lastAttempt = now;
+        preferences.edit().putLong("appReleaseAttemptV2", now).apply();
         status = "loading";
         changed.run();
         worker.execute(() -> {
@@ -88,6 +89,13 @@ final class AppUpdates {
         return validDownload(address) ? address : "";
     }
 
+    long nextCheckDelay() {
+        long age = System.currentTimeMillis() - lastAttempt;
+        return age < 0 ? 1000 : Math.max(1000, INTERVAL - age);
+    }
+
+    JSONObject release() { return release; }
+
     void close() { closed = true; }
 
     static JSONObject parse(JSONObject raw) throws Exception {
@@ -104,11 +112,14 @@ final class AppUpdates {
             String expected = "https://github.com/" + REPOSITORY + "/releases/download/" + tag + "/" + filename;
             if (!filename.equals(asset.optString("name")) || !expected.equals(address) || !validDownload(address)
                     || asset.optLong("size") <= 0 || !"uploaded".equals(asset.optString("state"))) continue;
+            String digest = asset.optString("digest");
+            if (!digest.matches("sha256:[0-9a-fA-F]{64}")) throw new IOException("APK checksum missing");
             String published = raw.getString("published_at");
             Instant.parse(published);
             String notes = raw.optString("body");
             return new JSONObject().put("version", version).put("publishedAt", published).put("download", address)
-                .put("notes", notes.substring(0, Math.min(16_000, notes.length())));
+                .put("notes", notes.substring(0, Math.min(16_000, notes.length())))
+                .put("sha256", digest.substring(7).toLowerCase(java.util.Locale.ROOT)).put("size", asset.getLong("size"));
         }
         throw new IOException("Release has no compatible APK");
     }

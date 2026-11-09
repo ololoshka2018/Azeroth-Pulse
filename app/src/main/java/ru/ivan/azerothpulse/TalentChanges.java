@@ -21,16 +21,35 @@ final class TalentChanges {
     TalentChanges(SharedPreferences preferences) { this.preferences = preferences; }
 
     private JSONArray journal() {
-        try { return new JSONArray(preferences.getString(JOURNAL, "[]")); }
-        catch (JSONException invalid) { return new JSONArray(); }
+        JSONArray clean = new JSONArray();
+        try {
+            JSONArray stored = new JSONArray(preferences.getString(JOURNAL, "[]"));
+            for (int i = 0; i < stored.length(); i++) {
+                JSONObject entry = stored.getJSONObject(i);
+                JSONArray items = entry.optJSONArray("items");
+                if (items == null) continue;
+                JSONArray retained = new JSONArray();
+                for (int j = 0; j < items.length(); j++) {
+                    String item = items.optString(j, "");
+                    if (!item.isEmpty() && !item.startsWith("Изменены таланты или их описания. ")
+                            && !item.startsWith("Обновлено дерево талантов ")) retained.put(item);
+                }
+                if (retained.length() > 0) clean.put(entry.put("items", retained));
+            }
+        } catch (JSONException invalid) { return new JSONArray(); }
+        return clean;
     }
 
     JSONObject state() throws JSONException {
         JSONArray entries = journal();
         long seen = preferences.getLong(SEEN, 0);
+        java.util.Set<String> read = preferences.getStringSet("talentReadEntriesV2", java.util.Collections.emptySet());
         int unread = 0;
         for (int i = 0; i < entries.length(); i++) {
-            if (entries.getJSONObject(i).getLong("id") > seen) unread++;
+            JSONObject entry = entries.getJSONObject(i);
+            boolean fresh = entry.getLong("id") > seen && !read.contains(String.valueOf(entry.getLong("id")));
+            entry.put("unread", fresh);
+            if (fresh) unread++;
         }
         return new JSONObject().put("entries", entries).put("unread", unread)
             .put("latest", preferences.getLong(SEQUENCE, 0));
@@ -39,7 +58,13 @@ final class TalentChanges {
     void viewed(long latest) {
         long sequence = preferences.getLong(SEQUENCE, 0);
         if (latest <= preferences.getLong(SEEN, 0) || latest > sequence) return;
-        preferences.edit().putLong(SEEN, latest).apply();
+        java.util.Set<String> read = new java.util.HashSet<>(preferences.getStringSet("talentReadEntriesV2", java.util.Collections.emptySet()));
+        read.add(String.valueOf(latest));
+        JSONArray active = journal();
+        java.util.Set<String> ids = new java.util.HashSet<>();
+        for (int i = 0; i < active.length(); i++) ids.add(String.valueOf(active.optJSONObject(i).optLong("id")));
+        read.retainAll(ids);
+        preferences.edit().putStringSet("talentReadEntriesV2", read).apply();
     }
 
     void saveCatalog(String className, JSONObject before, JSONObject after) throws JSONException {
@@ -59,11 +84,6 @@ final class TalentChanges {
 
     static JSONArray diff(JSONObject before, JSONObject after) throws JSONException {
         JSONArray changes = new JSONArray();
-        String oldVersion = before.optString("version");
-        String version = after.optString("version");
-        if (!oldVersion.isEmpty() && !oldVersion.equals(version)) {
-            changes.put("Обновлено дерево талантов " + oldVersion + " → " + version + ".");
-        }
         Map<String, JSONObject> oldBuilds = builds(before);
         Map<String, JSONObject> newBuilds = builds(after);
         Map<String, JSONObject> oldNodes = nodes(before);
@@ -102,17 +122,31 @@ final class TalentChanges {
                 if (!newBuilds.containsKey(entry.getKey())) changes.put("Удалён билд «" + entry.getValue().optString("title") + "».");
             }
         }
-        ArrayList<String> changedNodes = new ArrayList<>();
         for (Map.Entry<String, JSONObject> entry : newNodes.entrySet()) {
             JSONObject old = oldNodes.get(entry.getKey());
-            if (old == null || !canonical(nodeContent(old)).equals(canonical(nodeContent(entry.getValue())))) {
-                changedNodes.add(entry.getValue().optString("name"));
+            JSONObject next = entry.getValue();
+            String label = "«" + next.optString("name") + "»";
+            if (old == null) {
+                changes.put("Добавлен талант " + label + ".");
+                continue;
+            }
+            ArrayList<String> details = new ArrayList<>();
+            if (!old.optString("en").equals(next.optString("en"))) details.add("прежнее название «" + old.optString("name") + "»");
+            if (old.optInt("max") != next.optInt("max")) details.add("максимум очков " + old.optInt("max") + " → " + next.optInt("max"));
+            if (!old.optString("_tree").equals(next.optString("_tree"))
+                    || old.optInt("row") != next.optInt("row") || old.optInt("col") != next.optInt("col")) {
+                details.add("новая позиция в дереве");
+            }
+            if (old.optInt("req") != next.optInt("req")) details.add("изменено требование к предыдущему таланту");
+            ArrayList<String> ranks = changedDescriptions(old.optJSONArray("effects"), next.optJSONArray("effects"));
+            if (!ranks.isEmpty()) details.add("изменение описания (ранги " + String.join(", ", ranks) + ")");
+            if (!details.isEmpty()) {
+                changes.put(label + " — " + String.join(", ", details) + ".");
             }
         }
         for (Map.Entry<String, JSONObject> entry : oldNodes.entrySet()) {
-            if (!newNodes.containsKey(entry.getKey())) changedNodes.add(entry.getValue().optString("name"));
+            if (!newNodes.containsKey(entry.getKey())) changes.put("Удалён талант «" + entry.getValue().optString("name") + "».");
         }
-        if (!changedNodes.isEmpty()) changes.put("Изменены таланты или их описания. " + String.join(", ", changedNodes) + ".");
         return changes;
     }
 
@@ -152,19 +186,19 @@ final class TalentChanges {
         return counts;
     }
 
-    private static JSONObject nodeContent(JSONObject node) throws JSONException {
-        JSONObject result = new JSONObject();
-        for (String key : new String[]{"id", "en", "row", "col", "max", "req", "_tree"}) result.put(key, node.opt(key));
-        JSONArray effects = node.optJSONArray("effects");
-        if (effects != null) {
-            JSONArray content = new JSONArray();
-            for (int i = 0; i < effects.length(); i++) {
-                JSONObject effect = effects.getJSONObject(i);
-                content.put(effect.optString("fingerprint", effect.optString("text")));
-            }
-            result.put("effects", content);
+    private static ArrayList<String> changedDescriptions(JSONArray before, JSONArray after) {
+        ArrayList<String> ranks = new ArrayList<>();
+        if (before == null || after == null) return ranks;
+        for (int i = 0; i < Math.min(before.length(), after.length()); i++) {
+            JSONObject old = before.optJSONObject(i), next = after.optJSONObject(i);
+            if (old == null || next == null) continue;
+            String a = old.optString("fingerprint"), b = next.optString("fingerprint");
+            if (a.isEmpty() || b.isEmpty() || a.equals(b)) continue;
+            if ("en".equals(old.optString("lang")) && "en".equals(next.optString("lang"))
+                    && old.optString("text").replaceAll("\\s+", " ").trim().equals(next.optString("text").replaceAll("\\s+", " ").trim())) continue;
+            ranks.add(String.valueOf(i + 1));
         }
-        return result;
+        return ranks;
     }
 
     private static TreeSet<String> keys(JSONObject object) {

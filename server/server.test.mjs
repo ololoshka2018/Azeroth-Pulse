@@ -1,0 +1,40 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {randomBytes,createHash} from 'node:crypto';
+import {createService} from './server.mjs';
+const rand = () => randomBytes(32).toString('base64url');
+const json = value => new Response(JSON.stringify(value),{status:200,headers:{'content-type':'application/json'}});
+test('OAuth round trip binds the phone verifier, consumes codes once and logs out',async t => {
+  const upstream = async address => {
+    if (address.endsWith('/token')) return json({access_token:'server-private-token'});
+    if (address.endsWith('/userinfo')) return json({battletag:'Test#1234'});
+    return json({wow_accounts:[{characters:[{name:'Test',surname:'Hero',slug:'test-hero',level:21,playable_class:{name:'Rogue'}}]}]});
+  };
+  const server = createService({origin:'https://pulse.example',clientId:'owner-client',clientSecret:'server-only-secret'},upstream);
+  await new Promise(r => server.listen(0,'127.0.0.1',r)); t.after(() => server.close());
+  const origin = `http://127.0.0.1:${server.address().port}`;
+  const verifier = rand(), state = rand(), challenge = createHash('sha256').update(verifier).digest('base64url');
+  const begin = await fetch(`${origin}/auth/start?${new URLSearchParams({region:'EU',state,challenge})}`,{redirect:'manual'});
+  assert.equal(begin.status,302); const authorization = new URL(begin.headers.get('location'));
+  assert.equal(authorization.origin,'https://oauth.battle.net'); assert.equal(authorization.searchParams.get('scope'),'openid wow.profile');
+  const callback = await fetch(`${origin}/auth/callback?${new URLSearchParams({code:'blizzard-code',state:authorization.searchParams.get('state')})}`,{redirect:'manual'});
+  assert.equal(callback.status,302); const destination = new URL(callback.headers.get('location'));
+  assert.equal(destination.protocol,'azerothpulse:'); assert.equal(destination.searchParams.get('state'),state);
+  assert.ok(!destination.href.includes('private-token')); const code = destination.searchParams.get('code');
+  const redeem = verifier => fetch(origin+'/auth/redeem',{method:'POST',body:JSON.stringify({code,verifier})});
+  assert.equal((await redeem(rand())).status,400);
+  const reply = await redeem(verifier); assert.equal(reply.status,200); const session = await reply.json();
+  assert.equal(session.account.battleTag,'Test#1234'); assert.equal(session.account.characters[0].slug,'test-hero');
+  assert.ok(!JSON.stringify(session).includes('server-private')); assert.equal((await redeem(verifier)).status,400);
+  const headers = {authorization:`Bearer ${session.session}`};
+  assert.equal((await fetch(origin+'/account',{headers})).status,200);
+  assert.equal((await fetch(origin+'/session',{method:'DELETE',headers})).status,200);
+  assert.equal((await fetch(origin+'/account',{headers})).status,401);
+  assert.equal((await fetch(`${origin}/auth/callback?state=${authorization.searchParams.get('state')}&code=replay`,{redirect:'manual'})).status,400);
+});
+test('unconfigured service fails closed',async t => {
+  const server = createService({origin:'https://pulse.example'}); await new Promise(r => server.listen(0,'127.0.0.1',r)); t.after(()=>server.close());
+  const origin = `http://127.0.0.1:${server.address().port}`;
+  assert.deepEqual(await (await fetch(origin+'/health')).json(),{configured:false});
+  assert.equal((await fetch(origin+'/auth/start')).status,503);
+});

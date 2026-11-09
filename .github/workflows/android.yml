@@ -32,8 +32,10 @@ jobs:
           packages: platform-tools platforms;android-35 build-tools;35.0.0
       - name: Validate bundled builds and census extraction
         run: |
+          node --test server/server.test.mjs
           python3 tests/check_talents.py
           node tests/extractor.cjs
+          node --check app/src/main/assets/ui/profile.js
           node --check app/src/main/assets/ui/app.js
           node --check app/src/main/assets/ui/talents.js
       - name: Tests, lint and APK builds

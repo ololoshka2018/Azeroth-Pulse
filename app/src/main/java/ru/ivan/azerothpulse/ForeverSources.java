@@ -57,7 +57,7 @@ final class ForeverSources {
         connection.setConnectTimeout(8000);
         connection.setReadTimeout(8000);
         connection.setRequestProperty("Accept", accept);
-        connection.setRequestProperty("User-Agent", "AzerothPulse/0.17 (Forever companion)");
+        connection.setRequestProperty("User-Agent", "AzerothPulse/0.18 (Forever companion)");
         try {
             int status = connection.getResponseCode();
             String location = connection.getHeaderField("Location");

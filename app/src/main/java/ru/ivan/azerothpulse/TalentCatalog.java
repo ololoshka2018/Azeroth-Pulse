@@ -189,7 +189,7 @@ final class TalentCatalog {
         }
     }
 
-    private static JSONArray effects(JSONObject talent, JSONObject known, int max) throws Exception {
+    static JSONArray effects(JSONObject talent, JSONObject known, int max) throws Exception {
         JSONArray source = talent.optJSONArray("desc");
         if (source == null) return null;
         JSONArray localized = known == null ? null : known.optJSONArray("effects");
@@ -210,9 +210,9 @@ final class TalentCatalog {
                 fingerprint.append(Character.forDigit(value & 0x0f, 16));
             }
             if (translation != null && fingerprint.toString().equals(translation.optString("fingerprint"))) {
-                result.put(new JSONObject().put("text", translation.getString("text")).put("lang", translation.optString("lang", "ru")));
+                result.put(new JSONObject().put("text", translation.getString("text")).put("lang", translation.optString("lang", "ru")).put("fingerprint", fingerprint.toString()));
             } else {
-                result.put(new JSONObject().put("text", text).put("lang", "en"));
+                result.put(new JSONObject().put("text", text).put("lang", "en").put("fingerprint", fingerprint.toString()));
             }
         }
         return hasDescription ? result : null;

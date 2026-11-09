@@ -17,3 +17,6 @@ local.properties
 *.b64
 *-private-signing-*
 __pycache__/
+
+.env*
+server/*.log

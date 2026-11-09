@@ -8,7 +8,7 @@ const MODES = {
 };
 const MODE_IDS = Object.keys(MODES);
 const REGIONS = {EU:'Европа', US:'Америка'};
-const NAV = {worlds:'Миры', roster:'Население', talents:'Таланты', news:'Новости'};
+const NAV = {worlds:'Миры', roster:'Население', talents:'Таланты', news:'Новости', character:'Персонаж', settings:'Настройки'};
 const NAMES = {
   Warrior:'Воин', Paladin:'Паладин', Hunter:'Охотник', Rogue:'Разбойник', Priest:'Жрец',
   Shaman:'Шаман', Mage:'Маг', Warlock:'Чернокнижник', Druid:'Друид',
@@ -40,6 +40,7 @@ let rosterFaction = 'all';
 let regionMenuOpen = false;
 let expandedArticle = null;
 let appUpdatesOpen = false;
+let newsFilter = 'all';
 
 function escape(value) {
   return String(value ?? '').replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
@@ -82,6 +83,8 @@ function appUpdateDialog() {
     checked:update.available ? 'Доступна новая версия приложения' : 'Установлена актуальная версия',
     unpublished:'Релизы приложения на GitHub ещё не опубликованы', offline:'Проверка недоступна · сохранённые сведения'};
   const release = update.release;
+  const download = state.apkDownload || {status:"idle",progress:0};
+  const downloading = ["downloading","verifying"].includes(download.status);
   return `<div class="dialog-shade"><section class="panel app-dialog" role="dialog" aria-modal="true" aria-labelledby="update-heading">
     <div class="dialog-title"><h2 id="update-heading">Azeroth Pulse</h2>
       <button class="red-button" data-action="close-app-updates" aria-label="Закрыть обновления">×</button></div>
@@ -90,15 +93,30 @@ function appUpdateDialog() {
     ${update.checkedAt ? `<p class="fine">Проверено · ${escape(timestamp(update.checkedAt))}</p>` : ''}
     ${release ? `<h3>Версия ${escape(release.version)}</h3><p class="fine">Выпуск · ${escape(timestamp(release.publishedAt))}</p>
       <div class="app-release-notes">${escape(release.notes || 'Описание изменений пока не опубликовано.')}</div>` : ''}
-    <div class="dialog-actions">${update.available ? '<button class="red-button" data-action="download-app-update">Скачать APK</button>' : ''}
+    <div class="dialog-actions">${update.available && !downloading ? `<button class="red-button" data-action="${['ready','permission'].includes(download.status) ? 'install-app-update' : 'download-app-update'}">${['ready','permission'].includes(download.status) ? 'Установить обновление' : 'Обновить приложение'}</button>` : ''}
       <button class="red-button" data-action="check-app-updates" ${update.status === 'loading' ? 'disabled' : ''}>Проверить обновления</button></div>
-    ${update.available ? '<p class="fine">APK скачивается из GitHub Releases через браузер. Установку подтверждает Android.</p>' : ''}
+    ${downloading ? `<p role="status">${download.status === 'verifying' ? 'Проверяем файл и подпись…' : `Загружаем обновление · ${download.progress}%`}</p><progress max="100" value="${download.progress}" aria-label="Загрузка обновления"></progress><button class="text-button" data-action="cancel-app-download">Отменить загрузку</button>` : ''}
+    ${download.error ? `<p class="character-error" role="status">${escape(download.error)}</p>` : ''}
+    ${download.status === 'permission' ? '<p>Разреши Azeroth Pulse устанавливать обновления в настройках Android, затем вернись сюда.</p>' : ''}
+    ${update.available ? '<p class="fine">Загрузка из GitHub Releases внутри приложения. Проверяются SHA-256, версия и подпись. Установку подтверждает Android.</p>' : ''}
   </section></div>`;
 }
 
-function viewTalentChanges() {
-  if (state.talentChanges.unread > 0) window.Pulse?.talentChangesViewed?.(state.talentChanges.latest);
+function settingsScreen() {
+  return section('Настройки') + `<article class="panel settings-panel">
+    <h3>Azeroth Pulse</h3>
+    <p>Версия ${escape(state.appUpdates.installed)} ${state.testing ? '· тестовая сборка' : ''}</p>
+    <h3>Размер текста</h3>${choices([[90,'Меньше'],[100,'Обычный'],[115,'Крупнее'],[130,'Большой']],state.textScale || 100,'text-scale','Размер текста')}
+    <p class="fine">Настройка сохраняется на этом телефоне.</p>
+    <div class="dialog-actions"><button class="red-button" data-action="app-updates">Обновления</button><button class="red-button" data-action="open-source" data-value="issues">Сообщить об ошибке</button></div>
+    <h3>Источники</h3><p>Перепись и популярность: WoWCensus. Персонажи и новости: Blizzard. Деревья талантов: Armory WoW Forever. Подборки билдов: Mobalytics, MmonsteR, METAMMO.</p>
+    <h3>О статистике</h3><p>Перепись показывает замеченных персонажей. Это выборка, а не текущий онлайн. Числа по расам и классам приблизительные.</p>
+    <h3>Материалы и права</h3><p>Независимый фанатский проект. Оригинальный код — MIT. Игровые текстуры, значки, шрифт и названия World of Warcraft принадлежат Blizzard Entertainment и соответствующим правообладателям. Они не распространяются по MIT.</p>
+    <p class="fine">Приложение не одобрено Blizzard. Перевод выполняется на устройстве через Google Translate / ML Kit.</p>
+    <div class="dialog-actions"><button class="text-button" data-action="open-source" data-value="licenses">Лицензии и источники</button><button class="text-button" data-action="open-source" data-value="privacy">Обработка данных</button></div>
+  </article>`;
 }
+
 function countLabel(value, label) {
   return `<div class="stat"><strong>${number(value)}</strong><span>${label}</span></div>`;
 }
@@ -141,7 +159,7 @@ function worldCard(id) {
       <button class="favorite" data-action="favorite" data-value="${id}" aria-pressed="${favorite}" aria-label="Избранный мир ${info.label}">${icon('star')}</button>
     </header>${summary}
     ${freshness(realm, state.sourceStatus['census.' + id] || state.sourceStatus.census, realm?.scanDate, 'Перепись')}
-    <div class="panel-foot"><small>Онлайн · неизвестен${realm ? `<br>За 7 дней · ${number(realm.active7d)} · ${calendarDay(realm.scanDate)}` : ''}</small></div>
+    <div class="panel-foot"><small>${realm ? `За 7 дней · ${number(realm.active7d)} · ${calendarDay(realm.scanDate)}` : ''}</small></div>
   </article>`;
 }
 function worlds() {
@@ -223,27 +241,32 @@ function newsScreen() {
     <p>${modelLoading ? 'Готовим русский перевод…' : news.translationStatus === 'failed' ? 'Перевод пока недоступен. Можно повторить попытку.' : 'Для новых публикаций на английском доступен перевод на русский.'}</p>
     ${modelLoading ? '' : '<button class="red-button" data-action="translate-news">Перевести с Google</button><small>В первый раз приложение загрузит языковой пакет.</small>'}
     </aside>` : '';
-  const cards = news.items.map(article => {
+  const cards = news.items.filter(article => newsFilter !== 'saved' || article.bookmarked).map(article => {
     const id = escape(article.id);
     const open = expandedArticle === article.id;
     return `<article class="panel news-card" id="news-${id}">
     <p class="fine">${escape(timestamp(article.publishedAt))}</p>
+    ${article.unread ? '<span class="unread-label">Новое</span>' : ''}
     <h3>${escape(article.title || 'Новая публикация WoW: Forever')}</h3>
     ${article.summary ? `<p class="news-summary">${escape(article.summary)}</p>` : ''}
     ${article.translation === 'machine' ? '<p class="fine">Автоматический перевод · Google Translate</p>' : ''}
     ${article.translation === 'editorial' ? '<p class="fine">Краткое изложение на русском</p>' : ''}
     <button class="red-button" data-action="${open ? 'close-news' : 'read-news'}" data-value="${id}"
       aria-expanded="${open}" aria-controls="article-${id}">${open ? 'Свернуть' : 'Читать полностью'}</button>
+    <button class="text-button news-save" data-action="bookmark-news" data-value="${id}" aria-pressed="${Boolean(article.bookmarked)}">${article.bookmarked ? '★ Сохранено' : '☆ Сохранить'}</button>
     <div class="news-reader" id="article-${id}" ${open ? '' : 'hidden'}>${open ? newsReader(article.id) : ''}</div>
     </article>`;
   }).join('');
-  return section('Новости', 'WoW: Forever · Blizzard Entertainment') +
+  return section('Новости', 'WoW: Forever · Blizzard Entertainment') + choices([['all','Все новости'],['saved','Избранное']],newsFilter,'news-filter','Фильтр новостей') +
     freshness(news, news.status, null) + translationPanel +
     (cards || '<p class="fine news-empty">Новости пока не загрузились.</p>');
 }
 
 function render(scrollToTop = false) {
   const scroll = window.scrollY;
+  document.documentElement.style.fontSize = `${14 * (state.textScale || 100) / 100}px`;
+  const profileFocus = app.querySelector('#character-query:focus');
+  const inputPosition = profileFocus?.selectionStart;
   Talents.rememberFolds(app);
   const focused = app.querySelector('.app-dialog :focus')?.dataset.action;
   const dialogScroll = app.querySelector('.app-dialog')?.scrollTop || 0;
@@ -251,27 +274,31 @@ function render(scrollToTop = false) {
   const scan = scanDates[scanDates.length - 1];
   const isNews = tab === 'news';
   const isTalents = tab === 'talents';
-  const status = isNews ? state.news.status : isTalents ? Talents.status() : state.status;
+  const isCharacter = tab === 'character';
+  const isSettings = tab === 'settings';
+  const showRegion = !isCharacter && !isSettings;
+  const showRefresh = showRegion || (isCharacter && Characters.selected());
+  const status = isCharacter ? state.characters.status : isNews ? state.news.status : isTalents ? Talents.status() : state.status;
   const statusLabel = isTalents ? ({
     loading:'Проверяем билды…', checked:'Билды проверены', partial:'Проверена часть подборок',
     offline:'Проверка недоступна · сохранённые билды', saved:'Сохранённые билды'
   })[status] : STATUS[status];
   const unread = state.news.unread;
-  const body = isNews ? newsScreen() : isTalents ? Talents.screen(state.talentStats) : tab === 'worlds' ? worlds() : roster();
+  const body = isCharacter ? Characters.screen() : isSettings ? settingsScreen() : isNews ? newsScreen() : isTalents ? Talents.screen(state.talentStats) : tab === 'worlds' ? worlds() : roster();
   app.innerHTML = `<div class="game-window">
-    <header class="window-title"><button class="region-toggle" data-action="region-menu" aria-label="Регион: ${REGIONS[state.region]} (${state.region})"
-      aria-expanded="${regionMenuOpen}" aria-controls="region-options"><span>${state.region}</span><span aria-hidden="true">▾</span></button>
+    <header class="window-title${showRegion ? '' : ' personal-title'}">${showRegion ? `<button class="region-toggle" data-action="region-menu" aria-label="Регион: ${REGIONS[state.region]} (${state.region})"
+      aria-expanded="${regionMenuOpen}" aria-controls="region-options"><span>${state.region}</span><span aria-hidden="true">▾</span></button>` : ''}
       <div><h1>Azeroth Pulse</h1><button class="app-version" data-action="app-updates"
         aria-label="Версия приложения ${escape(state.appUpdates.installed)} и обновления">FOREVER · v${escape(state.appUpdates.installed)}${state.appUpdates.available ? ' ●' : ''}</button></div>
-      <button class="red-button refresh" data-action="refresh" ${status === 'loading' ? 'disabled' : ''}>${icon('watch')}Обновить</button>
+      ${showRefresh ? `<button class="red-button refresh" data-action="refresh" ${status === 'loading' ? 'disabled' : ''}>${icon('watch')}${isCharacter && status === 'loading' ? 'Обновляем…' : 'Обновить'}</button>` : ''}
     </header>
     <div class="region-menu" id="region-options" ${regionMenuOpen ? '' : 'hidden'}>
       <p>Регион игры</p>
       ${choices(Object.entries(REGIONS).map(([id,label]) => [id, `${id} · ${label}`]), state.region, 'region', 'Регион игры')}
     </div>
-    <div class="status-line" role="status"><span>${escape(statusLabel || STATUS.saved)}</span><span>${isNews ? 'Лента Forever' : isTalents ? 'Каталог талантов' : `Перепись · ${calendarDay(scan)}`}</span></div>
+    ${showRegion ? `<div class="status-line" role="status"><span>${escape(statusLabel || STATUS.saved)}</span><span>${isNews ? 'Лента Forever' : isTalents ? 'Каталог талантов' : `Перепись · ${calendarDay(scan)}`}</span></div>` : ''}
     ${state.appUpdates.available ? '<aside class="app-update-notice"><button data-action="app-updates">Доступно обновление Azeroth Pulse · Что нового →</button></aside>' : ''}
-    <main>${body}</main>
+    <main${isCharacter && status === 'loading' ? ' aria-busy="true"' : ''}>${body}</main>
     </div>
     <nav class="nav" aria-label="Разделы"><div class="action-bar">${Object.entries(NAV).map(([id,label]) => {
       const count = id === 'news' ? unread : id === 'talents' ? state.talentChanges.unread : 0;
@@ -284,14 +311,26 @@ function render(scrollToTop = false) {
     app.querySelector('.app-dialog').scrollTop = dialogScroll;
     app.querySelector(`.app-dialog [data-action="${focused || 'close-app-updates'}"]`)?.focus({preventScroll:true});
   }
+  if (profileFocus && !scrollToTop) {
+    const input = app.querySelector('#character-query');
+    input?.focus({preventScroll:true});
+    try { input?.setSelectionRange(inputPosition,inputPosition); } catch (_) {}
+  }
   window.scrollTo(0, scrollToTop ? 0 : scroll);
 }
 
 window.dismissPulseDialog = () => {
-  if (!appUpdatesOpen) return false;
+  if (!appUpdatesOpen) {
+    if (expandedArticle !== null) { expandedArticle = null; window.Pulse?.closeNews(); render(); return true; }
+    if (tab === 'character' || tab === 'settings') {
+      if (tab === 'character' && Characters.dismissEquipment()) return true;
+      tab = 'worlds'; render(true); return true;
+    }
+    return false;
+  }
   appUpdatesOpen = false;
   render();
-  app.querySelector('[data-action="app-updates"]')?.focus({preventScroll:true});
+  (app.querySelector('.settings-panel [data-action="app-updates"]') || app.querySelector('[data-action="app-updates"]'))?.focus({preventScroll:true});
   return true;
 };
 
@@ -310,6 +349,13 @@ app.addEventListener('click', event => {
   if (!button || !state) return;
   const {action,value} = button.dataset;
   switch (action) {
+    case 'text-scale': window.Pulse?.setTextScale?.(Number(value)); if (!window.Pulse) { state.textScale = Number(value); render(); } return;
+    case 'open-source': window.Pulse?.openSource?.(value); return;
+    case 'character-talents': tab = 'talents'; Talents.useCharacter(Characters.selected()); render(true); Talents.load(); return;
+    case 'news-filter': newsFilter = value; render(true); return;
+    case 'bookmark-news': window.Pulse?.bookmarkNews?.(value); return;
+    case 'install-app-update': window.Pulse?.installAppUpdate?.(); return;
+    case 'cancel-app-download': window.Pulse?.cancelAppDownload?.(); return;
     case 'app-updates':
       appUpdatesOpen = true;
       render();
@@ -319,7 +365,8 @@ app.addEventListener('click', event => {
     case 'check-app-updates': window.Pulse?.checkAppUpdates?.(); return;
     case 'download-app-update': window.Pulse?.downloadAppUpdate?.(); return;
     case 'refresh':
-      if (tab === 'news') window.Pulse?.refreshNews();
+      if (tab === 'character') window.Pulse?.refreshCharacter?.();
+      else if (tab === 'news') window.Pulse?.refreshNews();
       else if (tab === 'talents') {
         Talents.check(true);
         window.Pulse?.refreshTalents(true);
@@ -369,13 +416,13 @@ app.addEventListener('click', event => {
         Talents.check(false);
         window.Pulse?.refreshTalents(false);
       }
-      if (tab === 'news' && state.news.unread > 0) window.Pulse?.newsViewed();
-      if (tab === 'talents') viewTalentChanges();
+      if (tab === 'character') Characters.refreshOldEquipment();
       return;
     case 'roster-mode': rosterMode = value; break;
     case 'roster-kind': rosterKind = value; break;
     case 'roster-faction': rosterFaction = value; break;
     default:
+      if (Characters.action(action,value,button)) return;
       if (tab !== 'talents' || !Talents.action(action, value)) return;
       if (action === 'talent-node' && button.classList.contains('talent-step')) {
         render();
@@ -401,20 +448,37 @@ app.addEventListener('change', event => {
 
 window.acceptPulseState = encoded => {
   const oldRegion = state?.region;
+  const oldCharacter = state?.characters?.selected;
   state = JSON.parse(encoded);
   if (!Object.hasOwn(REGIONS, state.region)) state.region = 'EU';
   state.news ||= {items:[], unread:0, untranslated:0, status:'saved', translationStatus:'idle'};
   state.sourceStatus ||= {};
-  state.appUpdates ||= {installed:'0.17.0', status:'saved', available:false};
+  state.appUpdates ||= {installed:'0.18.4', status:'saved', available:false};
+  state.characters ||= {characters:[],selected:'',results:[],status:'saved'};
   state.talentChanges ||= {entries:[], unread:0, latest:0};
   if (!MODE_IDS.includes(state.favorite)) state.favorite = 'PVE';
   if (oldRegion !== state.region) {
     rosterMode = state.favorite;
   }
   render(oldRegion !== state.region && tab !== 'news');
-  if (tab === 'news' && state.news.unread > 0) window.Pulse?.newsViewed();
-  if (tab === 'talents') viewTalentChanges();
+  if (tab === 'character' && oldCharacter !== state.characters.selected) Characters.refreshOldEquipment();
 };
+
+app.addEventListener('submit', event => { if (event.target.id === 'character-search-form') { event.preventDefault(); Characters.submit(); } });
+app.addEventListener('input', event => { if (event.target.id === 'character-query') Characters.input(event.target.value); });
+app.addEventListener('toggle', event => Talents.foldChanged(event.target), true);
+app.addEventListener('error', ({target}) => {
+  if (target.matches('.gear-icon')) target.hidden = true;
+  if (!target.matches('.character-render')) return;
+  const fallback = target.dataset.fallback;
+  if (!fallback || target.getAttribute('src') === fallback) {
+    target.hidden = true;
+    return;
+  }
+  target.classList.add('render-portrait');
+  target.alt = 'Портрет персонажа';
+  target.src = fallback;
+}, true);
 
 let previewSnapshots;
 function previewRegion(region) {

@@ -6,6 +6,8 @@ const Talents = (() => {
   const catalogs = new Map();
   const syncStates = new Map();
   let data, pending, unavailable, playerClass, goal = 'leveling', buildIndex = 0, treeIndex = null, selectedNode;
+  let context = null, favoriteBuild = "", pendingCharacter;
+  const openedChanges = new Set();
   let showPath = false, showStats = false, showChanges = false;
 
   function load() {
@@ -20,6 +22,8 @@ const Talents = (() => {
       data = catalog;
       const saved = window.Pulse?.talentClass?.();
       playerClass = Object.hasOwn(data.classes, saved) ? saved : 'Rogue';
+      syncContext();
+      if (pendingCharacter) useCharacter(pendingCharacter);
     }).catch(() => {
       unavailable = true;
     }).finally(() => {
@@ -31,6 +35,36 @@ const Talents = (() => {
     });
   }
 
+  function identity(build) { return build ? `${build.source}|${build.sourceKey}|${build.goal}` : ''; }
+  function persist() {
+    if (!data || !playerClass) return;
+    const build = currentCatalog().builds.filter(b => b.goal === goal)[buildIndex];
+    favoriteBuild = identity(build);
+    window.Pulse?.saveTalentPreferences?.(JSON.stringify({className:playerClass,goal,build:favoriteBuild,level:currentLevel()}));
+  }
+  function syncContext() {
+    if (!data) return;
+    const next = state.characters?.selected || '';
+    if (next === context) return;
+    context = next; levels.clear(); treeIndex = null; selectedNode = null;
+    let choice = {};
+    try { choice = JSON.parse(window.Pulse?.talentPreferences?.() || '{}'); } catch (_) {}
+    const character = Characters.selected();
+    playerClass = character?.className || (Object.hasOwn(data.classes,choice.className) ? choice.className : window.Pulse?.talentClass?.()) || 'Rogue';
+    goal = goals.some(([id]) => id === choice.goal) ? choice.goal : 'leveling';
+    favoriteBuild = choice.build || '';
+    const level = choice.className === playerClass && Number.isInteger(choice.level) ? choice.level : character?.level;
+    if (Number.isInteger(level)) levels.set(playerClass, Math.max(9,Math.min(60,level)));
+    buildIndex = Math.max(0,currentCatalog().builds.filter(b => b.goal === goal).findIndex(b => identity(b) === favoriteBuild));
+  }
+  function useCharacter(character) {
+    pendingCharacter = character;
+    if (!data || !character) { load(); return; }
+    syncContext(); playerClass = character.className;
+    levels.set(playerClass, Math.max(9,Math.min(60,character.level)));
+    buildIndex = Math.max(0,currentCatalog().builds.filter(b => b.goal === goal).findIndex(b => identity(b) === favoriteBuild));
+    treeIndex = null; selectedNode = null; pendingCharacter = null; check(false); persist();
+  }
   function currentCatalog() { return catalogs.get(playerClass) || data.classes[playerClass]; }
 
   function check(force) {
@@ -39,7 +73,10 @@ const Talents = (() => {
       syncStates.set(playerClass, 'saved');
       try {
         const cached = window.Pulse?.cachedTalentCatalog?.(playerClass);
-        if (cached) catalogs.set(playerClass, JSON.parse(cached));
+        if (cached) {
+          catalogs.set(playerClass, JSON.parse(cached));
+          buildIndex = Math.max(0,currentCatalog().builds.filter(b => b.goal === goal).findIndex(b => identity(b) === favoriteBuild));
+        }
       } catch (_) {
         // The bundled catalog is available when the local cache cannot be read.
       }
@@ -58,8 +95,9 @@ const Talents = (() => {
       catalogs.set(className, next);
       if (className === playerClass) {
         const matching = next.builds.filter(build => build.goal === goal).findIndex(build =>
-          build.source === current?.source && build.sourceKey === current?.sourceKey);
+          identity(build) === (identity(current) || favoriteBuild));
         buildIndex = Math.max(0, matching);
+        persist();
       }
     }
     if (tab === 'talents' && className === playerClass) render();
@@ -170,12 +208,12 @@ const Talents = (() => {
 
   function changesPanel() {
     const changes = state.talentChanges;
-    const entries = changes.entries.map(entry => `<article class="talent-change-entry">
-      <h3>${name(entry.className)}</h3><p class="fine">${escape(timestamp(entry.at))}</p>
-      <ul>${entry.items.map(item => `<li>${escape(item)}</li>`).join('')}</ul></article>`).join('');
-    return `<details class="panel talent-change-log" data-talent-fold="changes" ${showChanges || changes.unread > 0 ? 'open' : ''}>
+    const entries = changes.entries.map(entry => `<details class="talent-change-entry" data-change-id="${entry.id}" ${openedChanges.has(entry.id) ? 'open' : ''}>
+      <summary>${name(entry.className)}${entry.unread ? ' · Новое' : ''}</summary><p class="fine">${escape(timestamp(entry.at))}</p>
+      <ul>${entry.items.map(item => `<li>${escape(item)}</li>`).join('')}</ul></details>`).join('');
+    return `<details class="panel talent-change-log" data-talent-fold="changes" ${showChanges ? 'open' : ''}>
       <summary>Изменения талантов и билдов${changes.unread > 0 ? ` · новых ${number(changes.unread)}` : ''}</summary>
-      ${entries || '<p class="fine">Изменений после проверок пока нет. Здесь появятся новые билды, изменения очков и описаний талантов.</p>'}
+      ${entries || '<p class="fine">Подтверждённых изменений пока нет.</p>'}
     </details>`;
   }
 
@@ -183,6 +221,7 @@ const Talents = (() => {
     const heading = section('Таланты', 'Готовые билды WoW Forever') + changesPanel();
     if (!data) return heading + `<article class="panel"><p>${unavailable ? 'Не удалось открыть каталог.' : 'Открываем каталог…'}</p>
       ${unavailable ? '<button class="red-button" data-action="talent-retry">Повторить</button>' : ''}</article>`;
+    syncContext();
     const classData = currentCatalog();
     const builds = classData.builds.filter(build => build.goal === goal);
     const build = builds[buildIndex];
@@ -256,7 +295,15 @@ const Talents = (() => {
         break;
       default: return false;
     }
+    if (!['talent-node','talent-tree','talent-retry'].includes(key)) persist();
     return true;
+  }
+
+  function foldChanged(target) {
+    if (!target?.dataset?.changeId) return;
+    const id = Number(target.dataset.changeId);
+    if (target.open) { openedChanges.add(id); if (state.talentChanges.entries.some(e => e.id === id && e.unread)) window.Pulse?.talentChangesViewed?.(id); }
+    else openedChanges.delete(id);
   }
 
   function rememberFolds(root) {
@@ -265,5 +312,5 @@ const Talents = (() => {
     showChanges = root.querySelector('[data-talent-fold="changes"]')?.open ?? showChanges;
   }
 
-  return {load, screen, action, rememberFolds, check, status};
+  return {load, screen, action, rememberFolds, check, status, foldChanged, useCharacter};
 })();
