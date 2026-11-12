@@ -251,7 +251,62 @@ function roster() {
     </article>`;
 }
 
-function newsReader(id) {
+const HOTFIX_MONTHS = [
+  ['january','января'], ['february','февраля'], ['march','марта'], ['april','апреля'],
+  ['may','мая'], ['june','июня'], ['july','июля'], ['august','августа'],
+  ['september','сентября'], ['october','октября'], ['november','ноября'], ['december','декабря']
+];
+
+function hotfixDay(block) {
+  if (block.type !== 'p' && block.type !== 'heading') return null;
+  const match = /^(?:(\d{1,2})\s+([а-яё]+)|([a-z]+)\s+(\d{1,2}),?)\s+(20\d{2})(?:\s*г(?:ода)?\.?)?$/iu.exec(block.text.trim());
+  if (!match) return null;
+  const monthName = (match[2] || match[3]).toLowerCase();
+  const month = HOTFIX_MONTHS.findIndex(names => names.includes(monthName));
+  const day = Number(match[1] || match[4]);
+  if (month < 0 || day < 1 || day > 31) return null;
+  const date = new Date(Date.UTC(Number(match[5]), month, day));
+  return date.getUTCDate() === day ? date.toISOString().slice(0,10) : null;
+}
+
+function articleBlock(block) {
+  const value = escape(block.text);
+  if (block.type === 'heading') return `<h4>${value}</h4>`;
+  if (block.type === 'bullet') return `<p class="article-bullet" data-depth="${Math.max(0, Math.min(3, Number(block.depth) || 0))}">${value}</p>`;
+  if (block.type === 'quote') return `<blockquote>${value}</blockquote>`;
+  if (block.type === 'row') return `<p class="article-row">${value}</p>`;
+  return `<p>${value}</p>`;
+}
+
+function articleText(article, blocks) {
+  if (!article.hotfixes) return blocks.map(articleBlock).join('');
+  const intro = [];
+  const days = new Map();
+  let current = intro;
+  for (const block of blocks) {
+    const date = hotfixDay(block);
+    if (!date) {
+      current.push(block);
+      continue;
+    }
+    if (!days.has(date)) days.set(date, {label:block.text, blocks:[]});
+    current = days.get(date).blocks;
+  }
+  if (days.size < 2) return blocks.map(articleBlock).join('');
+
+  const previous = document.getElementById('article-' + article.id);
+  const open = new Map([...(previous?.querySelectorAll('.hotfix-day') || [])]
+    .map(section => [section.dataset.date, section.open]));
+  const newest = [...days.keys()].sort().at(-1);
+  return intro.map(articleBlock).join('') + [...days].map(([date, day]) =>
+    `<details class="hotfix-day" data-date="${date}"${(open.get(date) ?? (date === newest)) ? ' open' : ''}>
+      <summary><time datetime="${date}">${escape(day.label)}</time></summary>
+      ${day.blocks.map(articleBlock).join('')}
+    </details>`).join('');
+}
+
+function newsReader(article) {
+  const {id} = article;
   const reader = window.Pulse ? state.news.reader : {id, status:'failed'};
   if (!reader || reader.id !== id || reader.status === 'loading') {
     return '<p class="fine" role="status">Загружаем полный текст…</p>';
@@ -276,16 +331,8 @@ function newsReader(id) {
     reader.status === 'translation-failed' ? 'Перевод не загрузился. Доступен английский текст.' : 'Оригинал Blizzard на английском';
   const translate = translation === 'original' && !translating && !showOriginal ?
     '<button class="red-button" data-action="translate-article">Перевести с Google</button><p class="fine">При первом переводе загрузится языковой пакет.</p>' : '';
-  const text = blocks.map(block => {
-    const value = escape(block.text);
-    if (block.type === 'heading') return `<h4>${value}</h4>`;
-    if (block.type === 'bullet') return `<p class="article-bullet" data-depth="${Math.max(0, Math.min(3, Number(block.depth) || 0))}">${value}</p>`;
-    if (block.type === 'quote') return `<blockquote>${value}</blockquote>`;
-    if (block.type === 'row') return `<p class="article-row">${value}</p>`;
-    return `<p>${value}</p>`;
-  }).join('');
   return `<p class="fine" role="status">${note}</p>${languageButton}${translate}
-    <div class="article-text" lang="${translation === 'original' ? 'en' : 'ru'}">${text}</div>
+    <div class="article-text" lang="${translation === 'original' ? 'en' : 'ru'}">${articleText(article, blocks)}</div>
     <button class="red-button" data-action="close-news" data-value="${escape(id)}">Свернуть</button>`;
 }
 
@@ -354,7 +401,7 @@ function newsScreen() {
     <button class="red-button" data-action="${open ? 'close-news' : 'read-news'}" data-value="${id}"
       aria-expanded="${open}" aria-controls="article-${id}">${open ? 'Свернуть' : 'Читать полностью'}</button>
     <button class="text-button news-save" data-action="bookmark-news" data-value="${id}" aria-pressed="${Boolean(article.bookmarked)}">${article.bookmarked ? '★ Сохранено' : '☆ Сохранить'}</button>
-    <div class="news-reader" id="article-${id}" ${open ? '' : 'hidden'}>${open ? newsReader(article.id) : ''}</div>
+    <div class="news-reader" id="article-${id}" ${open ? '' : 'hidden'}>${open ? newsReader(article) : ''}</div>
     </article>`;
   }).join('');
   return header + dropNotice +
@@ -574,7 +621,7 @@ window.acceptPulseState = encoded => {
   state.news ||= {items:[], unread:0, untranslated:0, status:'saved', translationStatus:'idle'};
   state.drops ||= {campaigns:[], offline:false};
   state.sourceStatus ||= {};
-  state.appUpdates ||= {installed:'1.1.1', status:'saved', available:false};
+  state.appUpdates ||= {installed:'1.1.2', status:'saved', available:false};
   if (!Object.hasOwn(THEMES, state.theme)) state.theme = 'classic';
   state.characters ||= {characters:[],selected:'',results:[],status:'saved'};
   state.talentChanges ||= {entries:[], unread:0, latest:0};

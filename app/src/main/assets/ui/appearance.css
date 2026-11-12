@@ -153,7 +153,7 @@
   border-color:var(--gold); background:var(--theme-active); color:var(--light-gold); box-shadow:none;
 }
 [data-theme] :is(.text-button,.talent-tip strong,.talent-step em,.talent-tree .chips small,.talent-path summary,.talent-popularity summary,.talent-path li > span,.talent-popularity b,.talent-change-entry h3,.character-level,.attribute-groups h4,.gear-tooltip-title button) { color:var(--light-gold); }
-[data-theme] :is(.talent-level,.talent-change-entry,.talent-effect + .talent-effect,.talent-path li,.talent-popularity li,.character-data li,.character-result,.news-reader,.article-text blockquote) { border-color:var(--theme-line); }
+[data-theme] :is(.talent-level,.talent-change-entry,.talent-effect + .talent-effect,.talent-path li,.talent-popularity li,.character-data li,.character-result,.news-reader,.hotfix-day,.article-text blockquote) { border-color:var(--theme-line); }
 [data-theme] .talent-grid { border-color:var(--theme-line); background:var(--theme-inset); }
 [data-theme] .talent-grid path { stroke:var(--theme-border); }
 [data-theme] .talent-grid path.learned { stroke:var(--gold); }

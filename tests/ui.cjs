@@ -10,7 +10,7 @@ const initial = {
   drops:JSON.parse(fs.readFileSync(path.join(root,'drops.json'))),
   characters:{characters:[],selected:'',results:[],status:'saved'},account:{configured:false},
   talentChanges:{entries:[{id:2,className:'Mage',at:'2026-11-08T12:00:00Z',items:['Обновлён билд мага.'],unread:true},{id:1,className:'Rogue',at:'2026-11-08T11:00:00Z',items:['Изменён порядок талантов.'],unread:true}],unread:2,latest:2},
-  news:{items:JSON.parse(fs.readFileSync(path.join(root,'news-seed.json'))).slice(0,3).map(a=>({...a,title:a.titleRu,summary:a.summaryRu,unread:true,bookmarked:false})),unread:3,untranslated:0,status:'saved',translationStatus:'idle'}
+  news:{items:JSON.parse(fs.readFileSync(path.join(root,'news-seed.json'))).slice(0,3).map(a=>({...a,title:a.titleRu,summary:a.summaryRu,hotfixes:a.url.includes('hotfix'),unread:true,bookmarked:false})),unread:3,untranslated:0,status:'saved',translationStatus:'idle'}
 };
 Object.assign(initial.snapshot.realms.PVP, {
   horde:22486,
@@ -44,7 +44,24 @@ const server = http.createServer((req,res)=>{
       window.Pulse={initial:()=>JSON.stringify(window.__model),refresh(){},refreshNews(){},refreshTalents(){},refreshTalentCatalog(){},cachedTalentCatalog:()=>'',talentClass:()=>window.__model.characters.characters[0]?.className||'Rogue',talentLevel:()=>9,saveTalents(){},talentPreferences:()=>localStorage.getItem(choiceKey())||'{}',saveTalentPreferences:s=>localStorage.setItem(choiceKey(),s),
         checkAppUpdates(){},downloadAppUpdate(){window.__model.apkDownload={status:'downloading',progress:37};save();},installAppUpdate(){},cancelAppDownload(){window.__model.apkDownload={status:'idle'};save();},
         searchCharacters(region,q){window.__model.characters={...window.__model.characters,searchRegion:region,query:q,results:[character],status:'checked'};save();},loadCharacter(){window.__model.characters.characters=[character];window.__model.characters.selected=character.key;save();},selectCharacter(key){window.__model.characters.selected=key;save();},refreshCharacter(){},removeCharacter(){window.__model.characters.characters=[];window.__model.characters.selected='';save();},
-        readNews(id){const n=window.__model.news;n.items.find(x=>x.id===id).unread=false;n.unread=n.items.filter(x=>x.unread).length;n.reader={id,status:'ready',body:{translation:'official',blocks:[{type:'p',text:'Тест полного текста новости.'}]}};save();},closeNews(){},showOriginal(){},translateNews(){},translateArticle(){},bookmarkNews(id){const a=window.__model.news.items.find(x=>x.id===id);a.bookmarked=!a.bookmarked;save();},newsViewed(){throw Error('whole-feed read is forbidden');},
+        readNews(id){
+          const n=window.__model.news, item=n.items.find(x=>x.id===id);
+          item.unread=false;
+          n.unread=n.items.filter(x=>x.unread).length;
+          const blocks = [
+            {type:'p',text:'Тест полного текста новости.'},
+            {type:'p',text:'11 ноября 2026 г.'},
+            {type:'bullet',text:'Свежие изменения.'},
+            {type:'heading',text:'10 ноября 2026'},
+            {type:'bullet',text:'Предыдущие изменения.'}
+          ];
+          n.reader={id,status:'ready',body:{translation:'official',blocks}};
+          if (item.hotfixes) n.reader.original={translation:'original',blocks:blocks.map(block=>({
+            ...block,text:block.text.replace('11 ноября 2026 г.','November 11, 2026').replace('10 ноября 2026','November 10, 2026')
+          }))};
+          save();
+        },
+        closeNews(){},showOriginal(show){window.__model.news.reader.showOriginal=show;save();},translateNews(){},translateArticle(){},bookmarkNews(id){const a=window.__model.news.items.find(x=>x.id===id);a.bookmarked=!a.bookmarked;save();},newsViewed(){throw Error('whole-feed read is forbidden');},
         talentChangesViewed(id){const s=window.__model.talentChanges;s.entries.find(x=>x.id===id).unread=false;s.unread=s.entries.filter(x=>x.unread).length;save();},
         setTextScale(value){window.__model.textScale=value;save();},setTheme(value){window.__model.theme=value;save();},
         openSource(value){window.__openedSource=value;},openDropSource(value){window.__openedDropSource=value;},
@@ -113,6 +130,17 @@ const server = http.createServer((req,res)=>{
     await page.locator('[data-action="bookmark-news"]').first().click();
     await page.locator('[data-action="news-filter"][data-value="saved"]').click();assert.equal(await page.locator('.news-card').count(),1);
     await page.locator('[data-action="read-news"]').click();assert.equal(await page.evaluate(()=>window.__model.news.unread),2);await fits('news saved');
+    const newestDay = page.locator('.hotfix-day[data-date="2026-11-11"]');
+    const olderDay = page.locator('.hotfix-day[data-date="2026-11-10"]');
+    assert.equal(await newestDay.getByText('Свежие изменения.').isVisible(),true);
+    assert.equal(await olderDay.getByText('Предыдущие изменения.').isVisible(),false);
+    await olderDay.locator('summary').click();
+    await page.getByRole('button',{name:'Показать оригинал'}).click();
+    assert.equal(await olderDay.locator('summary').innerText(),'November 10, 2026');
+    assert.equal(await olderDay.getByText('Предыдущие изменения.').isVisible(),true);
+    await page.getByRole('button',{name:'Все новости'}).click();
+    await page.locator('.news-card').nth(1).locator('[data-action="read-news"]').click();
+    assert.equal(await page.locator('.hotfix-day').count(),0,'Ordinary articles retain their full text');
     await page.locator('[data-action="nav"][data-value="talents"]').click();await page.locator('.talent-node').first().waitFor();
     assert.equal(await page.evaluate(()=>window.__model.talentChanges.unread),2);
     assert.equal(await page.locator('.talent-change-log').getAttribute('open'),null);

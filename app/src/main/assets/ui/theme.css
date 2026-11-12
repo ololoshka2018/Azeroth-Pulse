@@ -167,6 +167,8 @@ main { padding: 6px 5px 8px; }
 .article-text { margin: 8px 0 2px; line-height: 1.5; overflow-wrap: anywhere; }
 .article-text p,.article-text blockquote { margin: 0 0 .65em; }
 .article-text h4 { margin: .75em 0 .35em; color: var(--light-gold); font: 400 1.2rem/1.2 var(--title); }
+.hotfix-day { border-top: 1px solid #5e4c31; }
+.hotfix-day summary { padding: .75em 0; min-height: 44px; cursor: pointer; color: var(--light-gold); }
 .article-text blockquote { padding-inline-start: .7em; border-inline-start: 2px solid #765b35; }
 .article-text .article-bullet { position: relative; margin-inline-start: 1em; }
 .article-bullet::before { content: '•'; position: absolute; left: -.85em; color: #d7b16c; }

@@ -79,6 +79,7 @@ final class NewsBoard {
             if (item.optString("titleRu").isEmpty()) untranslated++;
             cards.put(new JSONObject().put("id", item.getString("id"))
                 .put("publishedAt", item.getString("publishedAt"))
+                .put("hotfixes", item.optString("url").contains("hotfix"))
                 .put("title", display(item, "title")).put("summary", display(item, "summary"))
                 .put("unread", !seen.contains(item.getString("version"))).put("bookmarked", bookmarks.contains(item.getString("id")))
                 .put("translation", item.optString("translation")));
